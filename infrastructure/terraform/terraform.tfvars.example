@@ -1,0 +1,13 @@
+# CloudGuard AI — Terraform Variables
+# Copy this file to terraform.tfvars and fill in your values
+# Never commit terraform.tfvars to git
+
+aws_region          = "us-east-1"
+environment         = "dev"
+project_name        = "cloudguard-ai"
+dynamodb_table_name = "cloudguard-threats"
+sns_alert_email     = "your-email@example.com"
+lambda_memory_mb    = 256
+lambda_timeout_sec  = 30
+waf_rate_limit      = 2000
+log_retention_days  = 30
