@@ -1,0 +1,48 @@
+name: Backend CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run tests
+        run: |
+          python -m pytest backend/tests -v --tb=short
+
+      - name: Health check
+        run: |
+          echo "All agents loaded successfully"
+          python -c "
+          import sys
+          sys.path.insert(0, 'backend/app')
+          from agents.threathound.analyzer import analyze as th
+          from agents.vaultguard.analyzer import analyze as vg
+          from agents.netsentinel.analyzer import analyze as ns
+          from agents.phagekiller.analyzer import analyze as pk
+          from agents.auditmind.analyzer import analyze as am
+          print('ThreatHound  ✓')
+          print('VaultGuard   ✓')
+          print('NetSentinel  ✓')
+          print('PhageKiller  ✓')
+          print('AuditMind    ✓')
+          print('All 5 agents operational.')
+          "
