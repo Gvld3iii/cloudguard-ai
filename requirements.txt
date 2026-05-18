@@ -1,5 +1,4 @@
-fastapi
-uvicorn
-pydantic
-pytest
-httpx
+fastapi==0.115.0
+uvicorn==0.30.0
+pydantic==2.7.0
+requests==2.32.3
