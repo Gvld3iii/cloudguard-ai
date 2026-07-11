@@ -12,7 +12,9 @@ import anthropic
 from dotenv import load_dotenv
 from backend.app.logger import get_logger
 
-load_dotenv()
+load_dotenv(".env", override=False)
+_tier = os.environ.get("CGAI_TIER", "basic")
+load_dotenv(f".env.{_tier}", override=True)
 
 logger        = get_logger("report_generator")
 REPORT_ENGINE = os.environ.get("REPORT_ENGINE", "ollama")

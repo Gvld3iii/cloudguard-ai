@@ -38,7 +38,7 @@ import argparse
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import List, Dict, Optional
-from agents.auditmind.report_generator import generate_report
+from app.agents.auditmind.report_generator import generate_report
 
 _THIS_DIR = Path(__file__).parent
 for p in [str(_THIS_DIR), str(_THIS_DIR/'..'/'..'/'..'), str(_THIS_DIR/'..'/'..'), str(_THIS_DIR/'..'/'..')]:
