@@ -1,0 +1,1780 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>CloudGuard AI</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;600;700;900&family=Exo+2:ital,wght@0,400;0,600;1,400;1,600;1,700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --accent:#00c864;--accent-dim:rgba(0,200,100,0.12);--accent-border:rgba(0,200,100,0.3);
+  --bg:#06090e;--bg2:#020508;--border:#0a3a20;--text:#b8cce0;--text-bright:#e8f8f0;
+}
+body.light{
+  --accent:#007a3d;--accent-dim:rgba(0,122,61,0.12);--accent-border:rgba(0,122,61,0.35);
+  --bg:#eef2f0;--bg2:#dde6e2;--border:#a8c8b8;--text:#1a2e28;--text-bright:#0a1a14;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Exo 2',sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow:hidden;user-select:none;}
+
+/* ── KEYFRAME ANIMATIONS ──────────────────────────────────── */
+@keyframes pulse-ring{0%{transform:scale(1);opacity:0.8;}100%{transform:scale(3);opacity:0;}}
+@keyframes threat-edge{0%,100%{opacity:0;}50%{opacity:1;}}
+@keyframes agent-breathe{0%,100%{opacity:1;}50%{opacity:0.3;}}
+@keyframes agent-breathe-fast{0%,100%{opacity:1;}30%{opacity:0.2;}}
+@keyframes slide-in-right{from{transform:translateX(24px);opacity:0;}to{transform:translateX(0);opacity:1;}}
+@keyframes slide-in-left{from{transform:translateX(-24px);opacity:0;}to{transform:translateX(0);opacity:1;}}
+@keyframes fade-in{from{opacity:0;}to{opacity:1;}}
+@keyframes boot-online{0%{opacity:0;color:#888;}50%{color:#00c864;text-shadow:0 0 8px #00c864;}100%{opacity:1;}}
+@keyframes shake{0%,100%{transform:translateX(0);}25%{transform:translateX(-4px);}75%{transform:translateX(4px);}}
+@keyframes scan-sweep{0%{transform:rotate(0deg);}100%{transform:rotate(360deg);}}
+@keyframes counter-up{0%{transform:translateY(8px);opacity:0;}100%{transform:translateY(0);opacity:1;}}
+@keyframes portrait-float{0%,100%{transform:translateY(0);}50%{transform:translateY(-6px);}}
+@keyframes hex-rotate{0%{transform:rotate(0deg);}100%{transform:rotate(360deg);}}
+@keyframes glow-pulse{0%,100%{filter:drop-shadow(0 0 4px currentColor);}50%{filter:drop-shadow(0 0 12px currentColor);}}
+@keyframes radar-ping{0%{r:0;opacity:1;}100%{r:60;opacity:0;}}
+@keyframes particle-float{0%{transform:translateY(0) translateX(0);opacity:1;}100%{transform:translateY(-40px) translateX(20px);opacity:0;}}
+@keyframes data-stream{0%{stroke-dashoffset:100;}100%{stroke-dashoffset:0;}}
+
+/* ── THREAT FLASH OVERLAY ─────────────────────────────────── */
+#threat-flash{
+  position:fixed;inset:0;pointer-events:none;z-index:999;
+  box-shadow:inset 0 0 0 0 rgba(232,64,64,0);
+  transition:box-shadow 0.1s;
+}
+#threat-flash.active{
+  animation:threat-edge 0.4s ease-out 3;
+  box-shadow:inset 0 0 60px 20px rgba(232,64,64,0.4);
+}
+
+/* ── SCAN PULSE ───────────────────────────────────────────── */
+#scan-pulse{
+  position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+  pointer-events:none;z-index:998;display:none;
+}
+#scan-pulse.active{display:block;}
+.pulse-ring{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  width:60px;height:60px;border-radius:50%;
+  border:2px solid var(--accent);
+  animation:pulse-ring 1.5s ease-out infinite;
+}
+.pulse-ring:nth-child(2){animation-delay:0.5s;}
+.pulse-ring:nth-child(3){animation-delay:1s;}
+
+/* ── TITLEBAR ────────────────────────────────────────────── */
+.titlebar{display:flex;align-items:center;justify-content:space-between;height:36px;background:var(--bg2);border-bottom:1px solid var(--border);padding:0 14px;-webkit-app-region:drag;}
+.tb-left{display:flex;align-items:center;gap:10px;}
+.tb-logo{font-family:'Orbitron',monospace;font-size:12px;font-weight:900;letter-spacing:3px;color:var(--text-bright);}
+.tb-status{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--accent);letter-spacing:2px;transition:color 0.3s;}
+.tb-status.threat{color:#e84040;animation:agent-breathe-fast 0.5s infinite;}
+.tb-controls{display:flex;gap:6px;-webkit-app-region:no-drag;}
+.tb-btn{width:12px;height:12px;border-radius:50%;cursor:pointer;border:none;outline:none;transition:transform 0.2s;}
+.tb-btn:hover{transform:scale(1.3);}
+.tb-btn.close{background:#e84040;}.tb-btn.min{background:#f0a020;}.tb-btn.max{background:#00c864;}
+
+/* ── TOPBAR ──────────────────────────────────────────────── */
+.topbar{display:flex;align-items:stretch;border-bottom:1px solid var(--border);height:50px;background:var(--bg2);}
+.brand{display:flex;align-items:center;gap:10px;padding:0 14px;border-right:1px solid var(--border);}
+.shield{
+  width:30px;height:30px;background:var(--accent-dim);border:1px solid var(--accent);
+  display:flex;align-items:center;justify-content:center;color:var(--accent);font-size:14px;
+  clip-path:polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);
+  transition:all 0.3s;cursor:pointer;
+}
+.shield:hover{background:var(--accent);color:var(--bg);}
+.shield.scanning{animation:glow-pulse 1s infinite;}
+.brand-name{font-family:'Orbitron',monospace;font-size:14px;font-weight:900;letter-spacing:3px;color:var(--text-bright);}
+.brand-sub{font-family:'Share Tech Mono',monospace;font-size:8px;color:var(--accent);letter-spacing:2px;font-style:italic;}
+.topstats{display:flex;}
+.ts{padding:0 12px;border-right:1px solid var(--border);display:flex;flex-direction:column;justify-content:center;transition:background 0.2s;}
+.ts:hover{background:var(--accent-dim);}
+.ts-l{font-family:'Exo 2',sans-serif;font-style:italic;font-size:9px;color:rgba(100,160,120,0.6);letter-spacing:1px;text-transform:uppercase;}
+.ts-v{font-family:'Orbitron',monospace;font-size:14px;font-weight:700;line-height:1.3;}
+.g{color:#00c864;}.a{color:#f0a020;}.b{color:#3a9de8;}.r{color:#e84040;}
+.clock{padding:0 14px;display:flex;flex-direction:column;justify-content:center;margin-left:auto;border-left:1px solid var(--border);}
+
+/* ── TABS ────────────────────────────────────────────────── */
+.tabs{display:flex;border-bottom:1px solid var(--border);background:var(--bg2);}
+.tab{
+  font-family:'Orbitron',monospace;font-size:9px;font-weight:700;letter-spacing:2px;
+  padding:9px 14px;cursor:pointer;color:rgba(100,160,140,0.5);
+  border-bottom:2px solid transparent;text-transform:uppercase;transition:all 0.2s;
+  position:relative;
+}
+.tab:hover{color:rgba(100,200,140,0.8);background:var(--accent-dim);}
+.tab.on{color:var(--accent);border-bottom-color:var(--accent);}
+.tab::after{content:'';position:absolute;bottom:-2px;left:50%;right:50%;height:2px;background:var(--accent);transition:left 0.3s,right 0.3s;}
+.tab.on::after{left:0;right:0;}
+.tab .badge{display:inline-flex;align-items:center;justify-content:center;background:#e84040;color:#fff;font-size:8px;font-weight:900;min-width:14px;height:14px;border-radius:7px;padding:0 3px;margin-left:4px;animation:agent-breathe-fast 1s infinite;}
+
+/* ── PANELS ──────────────────────────────────────────────── */
+.panel{display:none;}
+.panel.on{display:grid;}
+
+/* ── AGENT SIDEBAR ───────────────────────────────────────── */
+.col-left{border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;}
+.ag{
+  display:flex;align-items:center;gap:7px;padding:10px 12px;
+  border-bottom:1px solid rgba(10,58,32,0.3);cursor:pointer;position:relative;
+  transition:background 0.2s,transform 0.15s;
+}
+.ag:hover{background:var(--accent-dim);transform:translateX(3px);}
+.ag::before{content:'';position:absolute;left:0;top:0;bottom:0;width:0;background:var(--ac);transition:width 0.2s;}
+.ag.on::before{width:3px;}
+.ag.on{background:var(--accent-dim);}
+.ag.boot{animation:boot-online 0.5s ease-out forwards;}
+.ag.shaking{animation:shake 0.4s ease-out;}
+.ag-dot{
+  width:8px;height:8px;background:var(--ac);
+  clip-path:polygon(50% 0%,100% 50%,50% 100%,0% 50%);
+  flex-shrink:0;animation:agent-breathe 3s infinite;
+}
+.ag.scanning .ag-dot{animation:agent-breathe-fast 0.6s infinite;}
+.ag-n{font-family:'Orbitron',monospace;font-size:9px;font-weight:700;color:var(--text-bright);text-transform:uppercase;transition:color 0.2s;}
+.ag:hover .ag-n{color:var(--ac);}
+.ag-r{font-family:'Exo 2',sans-serif;font-style:italic;font-size:9px;color:rgba(100,150,180,0.5);}
+.ag-s{font-family:'Orbitron',monospace;font-size:13px;color:var(--ac);margin-left:auto;font-weight:700;animation:counter-up 0.3s ease-out;}
+.ag-arrow{font-size:9px;color:var(--ac);opacity:0;transition:opacity 0.2s;}
+.ag:hover .ag-arrow{opacity:1;}
+.risk-block{padding:12px;border-top:1px solid var(--border);margin-top:auto;}
+.risk-num{font-family:'Orbitron',monospace;font-size:30px;font-weight:900;line-height:1;transition:color 0.5s;}
+.risk-sub{font-family:'Exo 2',sans-serif;font-style:italic;font-size:9px;color:rgba(100,160,120,0.5);margin-top:2px;}
+.risk-bar{height:3px;background:rgba(255,255,255,0.08);margin-top:7px;}
+.risk-fill{height:100%;transition:width 1.5s cubic-bezier(0.4,0,0.2,1),background 1s;}
+
+/* ── FEED ────────────────────────────────────────────────── */
+.col-mid{display:flex;flex-direction:column;overflow:hidden;position:relative;}
+.feed{flex:1;overflow:hidden;}
+.fi{
+  display:flex;align-items:flex-start;gap:6px;padding:5px 12px;
+  border-bottom:1px solid rgba(10,40,20,0.3);
+  animation:slide-in-right 0.3s ease-out;
+}
+.fi:hover{background:var(--accent-dim);}
+.fi.real{border-left:2px solid #00c864;background:rgba(0,200,100,0.03);}
+.fi.real-threat{border-left:2px solid #e84040;background:rgba(232,64,64,0.04);}
+.fi-t{font-family:'Share Tech Mono',monospace;font-size:9px;color:rgba(80,130,100,0.5);white-space:nowrap;min-width:48px;padding-top:1px;}
+.fi-ag{font-family:'Orbitron',monospace;font-size:8px;font-weight:700;min-width:24px;padding-top:2px;transition:color 0.2s;}
+.fi-sep{color:rgba(80,130,100,0.3);font-size:9px;padding-top:1px;}
+.fi-m{font-family:'Exo 2',sans-serif;font-style:italic;font-size:10px;color:var(--text);line-height:1.4;flex:1;}
+.fi-sev{font-family:'Orbitron',monospace;font-size:7px;padding:1px 4px;white-space:nowrap;flex-shrink:0;font-weight:700;}
+.sl{background:rgba(0,200,100,0.1);color:#00c864;}
+.sm{background:rgba(240,160,32,0.1);color:#f0a020;}
+.sh{background:rgba(232,64,64,0.12);color:#e84040;}
+.sc{background:rgba(255,40,40,0.2);color:#ff5555;}
+.live-badge{font-family:'Share Tech Mono',monospace;font-size:7px;background:var(--accent-dim);color:var(--accent);padding:1px 4px;border:1px solid var(--accent-border);transition:all 0.3s;}
+
+/* ── AGENT DETAIL PANEL ──────────────────────────────────── */
+#agent-detail{
+  position:absolute;inset:0;background:var(--bg);z-index:10;
+  display:none;flex-direction:column;overflow:hidden;
+}
+#agent-detail.visible{display:flex;animation:slide-in-left 0.3s ease-out;}
+.detail-header{
+  display:flex;align-items:center;gap:10px;padding:10px 14px;
+  border-bottom:1px solid var(--border);background:var(--bg2);
+  flex-shrink:0;
+}
+.detail-body{
+  display:flex;flex-direction:row;flex:1;overflow:hidden;
+}
+.detail-portrait-col{
+  width:140px;flex-shrink:0;border-right:1px solid var(--border);
+  display:flex;flex-direction:column;overflow:hidden;position:relative;
+}
+.detail-content-col{
+  flex:1;display:flex;flex-direction:column;overflow:hidden;
+}
+.detail-back{
+  font-family:'Orbitron',monospace;font-size:8px;font-weight:700;
+  color:var(--accent);cursor:pointer;padding:4px 8px;
+  background:var(--accent-dim);border:1px solid var(--accent-border);
+  transition:all 0.2s;
+}
+.detail-back:hover{background:rgba(0,200,100,0.2);}
+.detail-agent-name{font-family:'Orbitron',monospace;font-size:13px;font-weight:900;letter-spacing:3px;color:var(--text-bright);text-transform:uppercase;}
+.detail-status{font-family:'Share Tech Mono',monospace;font-size:9px;margin-left:auto;}
+.portrait-container{
+  display:flex;align-items:center;justify-content:center;
+  padding:0;position:relative;overflow:hidden;background:var(--bg2);
+  flex:1;width:140px;
+}
+.portrait-bg{
+  position:absolute;inset:0;opacity:0.05;
+  background:repeating-linear-gradient(0deg,transparent,transparent 20px,var(--ac) 20px,var(--ac) 21px),
+             repeating-linear-gradient(90deg,transparent,transparent 20px,var(--ac) 20px,var(--ac) 21px);
+}
+.portrait-svg{animation:portrait-float 4s ease-in-out infinite;filter:drop-shadow(0 0 8px var(--portrait-color));}
+.portrait-img{width:140px;height:100%;object-fit:cover;object-position:top center;transition:filter 0.3s;animation:portrait-float 6s ease-in-out infinite;}
+.portrait-img:hover{filter:brightness(1.1);}
+.portrait-overlay{position:absolute;bottom:0;left:0;right:0;height:80px;background:linear-gradient(transparent,var(--bg2));pointer-events:none;}
+.portrait-agent-label{
+  position:absolute;bottom:8px;left:0;right:0;text-align:center;
+  font-family:'Orbitron',monospace;font-size:7px;font-weight:700;
+  letter-spacing:2px;text-transform:uppercase;color:var(--ac);
+  text-shadow:0 0 8px var(--ac);
+}
+.detail-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:0;border-bottom:1px solid var(--border);}
+.detail-stat{padding:8px 10px;text-align:center;border-right:1px solid var(--border);}
+.detail-stat:last-child{border-right:none;}
+.detail-stat-num{font-family:'Orbitron',monospace;font-size:18px;font-weight:900;line-height:1;}
+.detail-stat-lbl{font-family:'Exo 2',sans-serif;font-style:italic;font-size:8px;color:rgba(100,160,120,0.6);text-transform:uppercase;margin-top:2px;}
+.detail-desc{padding:10px 14px;font-family:'Exo 2',sans-serif;font-style:italic;font-size:10px;color:var(--text);line-height:1.6;border-bottom:1px solid var(--border);}
+.detail-findings{flex:1;overflow-y:auto;padding:0;}
+.detail-finding{padding:8px 14px;border-bottom:1px solid rgba(10,40,20,0.3);animation:slide-in-right 0.3s ease-out;}
+.detail-finding:hover{background:var(--accent-dim);}
+.detail-find-head{display:flex;align-items:center;gap:6px;margin-bottom:2px;}
+.detail-find-rule{font-family:'Orbitron',monospace;font-size:8px;font-weight:700;color:var(--text-bright);text-transform:uppercase;flex:1;}
+.detail-find-sev{font-family:'Orbitron',monospace;font-size:7px;padding:1px 4px;font-weight:700;}
+.detail-find-desc{font-family:'Exo 2',sans-serif;font-style:italic;font-size:9px;color:rgba(120,160,180,0.6);}
+.detail-actions{padding:10px 14px;border-top:1px solid var(--border);margin-top:auto;}
+
+/* ── AGENT STRIP ─────────────────────────────────────────── */
+.agent-strip{border-top:1px solid var(--border);padding:8px 10px;display:grid;grid-template-columns:repeat(5,1fr);gap:5px;}
+.ac{
+  background:rgba(255,255,255,0.02);border:1px solid rgba(10,58,32,0.5);
+  padding:6px 4px;text-align:center;border-top:2px solid var(--ac);
+  cursor:pointer;transition:all 0.2s;
+}
+.ac:hover{background:var(--accent-dim);transform:translateY(-2px);}
+.ac-n{font-family:'Orbitron',monospace;font-size:7px;font-weight:700;color:var(--text-bright);text-transform:uppercase;margin-bottom:2px;}
+.ac-s{font-family:'Orbitron',monospace;font-size:16px;color:var(--ac);font-weight:900;line-height:1;}
+.ac-l{font-family:'Exo 2',sans-serif;font-style:italic;font-size:7px;color:rgba(100,140,160,0.5);}
+.ac-bar{height:2px;background:rgba(255,255,255,0.06);margin-top:4px;}
+.ac-fill{height:100%;background:var(--ac);transition:width 1.5s cubic-bezier(0.4,0,0.2,1);}
+.ac-st{font-family:'Exo 2',sans-serif;font-style:italic;font-size:7px;color:var(--accent);margin-top:2px;}
+
+/* ── RIGHT COL ───────────────────────────────────────────── */
+.col-right{border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;}
+.sec-head{font-family:'Exo 2',sans-serif;font-style:italic;font-size:9px;letter-spacing:2px;color:rgba(0,200,100,0.5);padding:8px 12px;text-transform:uppercase;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
+.threat-status-bar{padding:8px 11px;border-bottom:1px solid rgba(10,40,20,0.4);background:var(--accent-dim);transition:background 0.5s;}
+.threat-status-bar.danger{background:rgba(232,64,64,0.08);}
+.threat-status-text{font-family:'Exo 2',sans-serif;font-style:italic;font-size:10px;color:var(--accent);line-height:1.4;transition:color 0.3s;}
+.threat-status-text.danger{color:#e84040;}
+.threat-stats-row{display:flex;gap:8px;margin-top:4px;}
+.threat-stat{font-family:'Share Tech Mono',monospace;font-size:8px;color:rgba(100,160,120,0.6);}
+.alert-item{padding:8px 11px;border-bottom:1px solid rgba(10,40,20,0.4);transition:background 0.2s;animation:slide-in-right 0.3s ease-out;}
+.alert-item:hover{background:var(--accent-dim);}
+.alert-head{display:flex;align-items:center;gap:5px;margin-bottom:2px;}
+.alert-dot{width:5px;height:5px;background:var(--ac);clip-path:polygon(50% 0%,100% 50%,50% 100%,0% 50%);flex-shrink:0;}
+.alert-title{font-family:'Orbitron',monospace;font-size:9px;font-weight:700;color:var(--text-bright);text-transform:uppercase;}
+.sev-badge{font-family:'Orbitron',monospace;font-size:7px;padding:1px 4px;margin-left:auto;font-weight:700;}
+.alert-body{font-family:'Exo 2',sans-serif;font-style:italic;font-size:10px;color:rgba(120,160,180,0.7);line-height:1.4;padding-left:10px;}
+.alert-time{font-family:'Share Tech Mono',monospace;font-size:8px;color:rgba(80,130,100,0.5);margin-top:2px;padding-left:10px;}
+.action-block{margin-top:auto;padding:10px 11px;border-top:1px solid var(--border);}
+.act-lbl{font-family:'Exo 2',sans-serif;font-style:italic;font-size:9px;color:rgba(0,200,100,0.5);text-transform:uppercase;margin-bottom:6px;}
+.cg-btn{
+  width:100%;padding:7px 8px;font-family:'Orbitron',monospace;font-size:8px;
+  letter-spacing:1px;text-transform:uppercase;cursor:pointer;margin-bottom:4px;
+  background:var(--accent-dim);border:1px solid var(--accent-border);color:var(--accent);
+  text-align:left;font-weight:700;transition:all 0.2s;position:relative;overflow:hidden;
+}
+.cg-btn::after{content:'';position:absolute;inset:0;background:var(--accent);transform:scaleX(0);transform-origin:left;transition:transform 0.3s;z-index:-1;opacity:0.1;}
+.cg-btn:hover{background:rgba(0,200,100,0.18);transform:translateX(2px);}
+.cg-btn:hover::after{transform:scaleX(1);}
+.cg-btn:active{transform:scale(0.98);}
+.cg-btn.scanning-btn{animation:glow-pulse 1.5s infinite;}
+.cg-btn.red{background:rgba(232,64,64,0.06);border-color:rgba(232,64,64,0.2);color:#e84040;}
+.cg-btn.red:hover{background:rgba(232,64,64,0.14);}
+.cg-btn.blue{background:rgba(58,157,232,0.06);border-color:rgba(58,157,232,0.2);color:#3a9de8;}
+.cg-btn.blue:hover{background:rgba(58,157,232,0.14);}
+.scan-time{font-family:'Share Tech Mono',monospace;font-size:8px;color:rgba(100,140,160,0.4);margin-top:4px;text-align:center;}
+
+/* ── VAULTGUARD PANEL ────────────────────────────────────── */
+.vault-finding{padding:8px 11px;border-bottom:1px solid rgba(10,40,20,0.4);transition:background 0.2s;animation:slide-in-right 0.3s ease-out;}
+.vault-finding:hover{background:var(--accent-dim);}
+.vault-finding.critical{border-left:3px solid #e84040;background:rgba(232,64,64,0.04);}
+.vault-finding.high{border-left:3px solid #f0a020;background:rgba(240,160,32,0.03);}
+.vault-finding.medium{border-left:3px solid #3a9de8;}
+.vault-finding.low{border-left:3px solid #00c864;}
+.vault-head-row{display:flex;align-items:center;gap:5px;margin-bottom:3px;}
+.vault-filename{font-family:'Exo 2',sans-serif;font-style:italic;font-size:10px;color:var(--text-bright);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.vault-rule{font-family:'Orbitron',monospace;font-size:7px;padding:1px 4px;font-weight:700;flex-shrink:0;}
+.vr-crit{background:rgba(232,64,64,0.15);color:#e84040;}
+.vr-high{background:rgba(240,160,32,0.12);color:#f0a020;}
+.vr-med{background:rgba(58,157,232,0.12);color:#3a9de8;}
+.vr-low{background:rgba(0,200,100,0.1);color:#00c864;}
+.vault-event-row{display:flex;align-items:center;gap:6px;padding:2px 0;}
+.vault-rule-name{font-family:'Orbitron',monospace;font-size:8px;font-weight:700;color:var(--text-bright);text-transform:uppercase;flex:1;}
+.vault-redacted{font-family:'Share Tech Mono',monospace;font-size:8px;color:#f0a020;background:rgba(240,160,32,0.08);padding:1px 4px;}
+.vault-action{font-family:'Share Tech Mono',monospace;font-size:8px;color:rgba(80,130,100,0.5);margin-top:1px;}
+.vault-stats-row{display:flex;gap:0;border-bottom:1px solid var(--border);}
+.vault-stat{flex:1;padding:6px 8px;text-align:center;border-right:1px solid var(--border);}
+.vault-stat:last-child{border-right:none;}
+.vault-stat-num{font-family:'Orbitron',monospace;font-size:14px;font-weight:900;line-height:1;transition:color 0.3s;}
+.vault-stat-lbl{font-family:'Exo 2',sans-serif;font-style:italic;font-size:8px;color:rgba(100,160,120,0.5);text-transform:uppercase;margin-top:1px;}
+
+/* ── TASK MANAGER ────────────────────────────────────────── */
+.tm-wrap{display:none;flex-direction:column;padding:12px;gap:11px;height:calc(100vh - 36px - 50px - 36px);overflow-y:auto;grid-column:1/-1;}
+.tm-wrap.on{display:flex;}
+.meters{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;}
+.meter{background:rgba(255,255,255,0.02);border:1px solid var(--border);padding:11px;transition:all 0.3s;}
+.meter:hover{background:var(--accent-dim);transform:translateY(-2px);}
+.meter-lbl{font-family:'Exo 2',sans-serif;font-style:italic;font-size:9px;color:rgba(100,160,120,0.6);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;}
+.meter-val{font-family:'Orbitron',monospace;font-size:22px;font-weight:900;line-height:1;}
+.meter-bar{height:3px;background:rgba(255,255,255,0.08);margin-top:6px;}
+.meter-fill{height:100%;transition:width 1.5s cubic-bezier(0.4,0,0.2,1),background 1s;}
+.meter-sub{font-family:'Exo 2',sans-serif;font-style:italic;font-size:9px;color:rgba(100,140,160,0.5);margin-top:3px;}
+.proc-table{background:rgba(255,255,255,0.01);border:1px solid var(--border);}
+.proc-head{display:grid;grid-template-columns:1fr 70px 80px 65px 110px;gap:6px;padding:6px 11px;border-bottom:1px solid var(--border);}
+.proc-head span{font-family:'Orbitron',monospace;font-size:7px;font-weight:700;color:rgba(0,200,100,0.5);text-transform:uppercase;letter-spacing:1px;}
+.proc-row{display:grid;grid-template-columns:1fr 70px 80px 65px 110px;gap:6px;padding:5px 11px;border-bottom:1px solid rgba(10,40,20,0.3);transition:background 0.2s;animation:slide-in-right 0.3s ease-out;}
+.proc-row:hover{background:var(--accent-dim);}
+.proc-name{font-family:'Exo 2',sans-serif;font-style:italic;font-size:11px;color:#a0c8e0;}
+.proc-val{font-family:'Orbitron',monospace;font-size:10px;font-weight:600;}
+.proc-risk{font-family:'Orbitron',monospace;font-size:7px;padding:2px 5px;font-weight:700;display:inline-block;transition:all 0.3s;}
+.pr-l{background:rgba(0,200,100,0.1);color:#00c864;}
+.pr-m{background:rgba(240,160,32,0.1);color:#f0a020;}
+.pr-h{background:rgba(232,64,64,0.12);color:#e84040;}
+.pr-c{background:rgba(255,40,40,0.2);color:#ff5555;}
+.pr-t{background:rgba(58,157,232,0.1);color:#3a9de8;}
+.ai-block{background:var(--accent-dim);border:1px solid var(--accent-border);padding:11px;}
+.ai-head{font-family:'Orbitron',monospace;font-size:9px;font-weight:700;color:var(--accent);letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;}
+.ai-tip{font-family:'Exo 2',sans-serif;font-style:italic;font-size:11px;color:var(--text);line-height:1.6;padding:3px 0;border-bottom:1px solid var(--accent-border);}
+.ai-tip:last-child{border-bottom:none;}
+
+/* ── DOWNLOAD PROTECTION ─────────────────────────────────── */
+.yara-card{background:rgba(255,255,255,0.02);border:1px solid var(--border);padding:11px;margin:10px 12px 0;}
+.yara-card-title{font-family:'Orbitron',monospace;font-size:8px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:2px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;}
+.yara-stat-row{display:flex;align-items:center;justify-content:space-between;padding:3px 0;border-bottom:1px solid rgba(10,40,20,0.3);}
+.yara-stat-row:last-child{border-bottom:none;}
+.yara-stat-label{font-family:'Exo 2',sans-serif;font-style:italic;font-size:9px;color:rgba(100,150,180,0.6);}
+.yara-stat-val{font-family:'Orbitron',monospace;font-size:10px;font-weight:700;color:var(--accent);}
+.dl-feed{flex:1;overflow-y:auto;}
+.dl-item{padding:9px 12px;border-bottom:1px solid rgba(10,40,20,0.4);display:flex;flex-direction:column;gap:3px;transition:background 0.2s;animation:slide-in-right 0.3s ease-out;}
+.dl-item:hover{background:var(--accent-dim);}
+.dl-item.blocked{border-left:3px solid #e84040;background:rgba(232,64,64,0.04);}
+.dl-item.suspicious{border-left:3px solid #f0a020;}
+.dl-item.clean{border-left:3px solid #00c864;}
+.dl-item.scanning{border-left:3px solid #3a9de8;}
+.dl-head-row{display:flex;align-items:center;gap:6px;}
+.dl-filename{font-family:'Exo 2',sans-serif;font-style:italic;font-size:11px;color:var(--text-bright);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.dl-verdict{font-family:'Orbitron',monospace;font-size:8px;padding:1px 5px;font-weight:700;flex-shrink:0;}
+.dv-clean{background:rgba(0,200,100,0.12);color:#00c864;}
+.dv-blocked{background:rgba(232,64,64,0.15);color:#e84040;}
+.dv-suspicious{background:rgba(240,160,32,0.12);color:#f0a020;}
+.dv-scanning{background:rgba(58,157,232,0.12);color:#3a9de8;}
+.dl-meta-row{display:flex;align-items:center;gap:8px;}
+.dl-meta{font-family:'Share Tech Mono',monospace;font-size:8px;color:rgba(80,130,100,0.5);}
+.dl-reason{font-family:'Exo 2',sans-serif;font-style:italic;font-size:9px;color:rgba(120,160,180,0.6);}
+.dl-stats-bar{border-bottom:1px solid var(--border);padding:8px 12px;display:flex;gap:12px;align-items:center;background:var(--accent-dim);}
+.dl-stat-item{display:flex;flex-direction:column;align-items:center;}
+.dl-stat-num{font-family:'Orbitron',monospace;font-size:16px;font-weight:900;line-height:1;}
+.dl-stat-lbl{font-family:'Exo 2',sans-serif;font-style:italic;font-size:8px;color:rgba(100,160,120,0.6);text-transform:uppercase;margin-top:1px;}
+.dl-stat-sep{width:1px;height:30px;background:var(--border);}
+.yara-source-row{display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(10,40,20,0.2);transition:background 0.2s;}
+.yara-source-row:hover{background:var(--accent-dim);padding-left:4px;}
+.yara-source-row:last-child{border-bottom:none;}
+.yara-source-name{font-family:'Exo 2',sans-serif;font-style:italic;font-size:9px;color:var(--text);}
+.yara-source-count{font-family:'Orbitron',monospace;font-size:9px;color:var(--accent);font-weight:700;}
+.yara-source-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0;}
+.yara-source-dot.ok{background:#00c864;animation:agent-breathe 3s infinite;}
+.yara-source-dot.fail{background:#e84040;}
+.progress-bar-wrap{height:3px;background:rgba(255,255,255,0.06);margin-top:8px;display:none;}
+.progress-bar-fill{height:100%;background:var(--accent);width:0%;transition:width 0.3s;}
+
+/* ── SETTINGS ────────────────────────────────────────────── */
+.settings-wrap{display:none;flex-direction:column;padding:12px;gap:11px;height:calc(100vh - 36px - 50px - 36px);overflow-y:auto;grid-column:1/-1;}
+.settings-wrap.on{display:flex;}
+.settings-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:11px;}
+.s-card{background:rgba(255,255,255,0.02);border:1px solid var(--border);padding:14px;transition:all 0.2s;}
+.s-card:hover{border-color:var(--accent-border);}
+.s-card-title{font-family:'Orbitron',monospace;font-size:9px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:2px;margin-bottom:12px;}
+.s-row{display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid rgba(10,40,20,0.3);transition:background 0.2s;}
+.s-row:hover{background:var(--accent-dim);padding-left:4px;}
+.s-row:last-child{border-bottom:none;}
+.s-label{font-family:'Exo 2',sans-serif;font-style:italic;font-size:11px;color:var(--text);flex-shrink:0;margin-right:12px;}
+.toggle{width:34px;height:17px;flex-shrink:0;background:var(--accent-dim);border:1px solid var(--accent-border);cursor:pointer;position:relative;transition:all 0.3s;}
+.toggle:hover{border-color:var(--accent);}
+.toggle.off{background:rgba(80,80,80,0.12);border-color:rgba(80,80,80,0.25);}
+.toggle-thumb{width:11px;height:11px;background:var(--accent);position:absolute;left:2px;top:2px;transition:left 0.2s,background 0.2s;}
+.toggle.off .toggle-thumb{left:19px;background:#555;}
+.swatches{display:flex;gap:5px;flex-wrap:wrap;}
+.swatch{width:18px;height:18px;cursor:pointer;border:2px solid transparent;flex-shrink:0;transition:all 0.2s;}
+.swatch:hover{transform:scale(1.2);}
+.swatch.active{border-color:#fff;transform:scale(1.1);}
+.range-wrap{display:flex;align-items:center;gap:8px;width:160px;flex-shrink:0;}
+.s-range{flex:1;min-width:0;height:3px;-webkit-appearance:none;background:var(--accent-border);outline:none;cursor:pointer;border-radius:2px;}
+.s-range::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;background:var(--accent);cursor:pointer;border-radius:0;}
+.s-val{font-family:'Orbitron',monospace;font-size:10px;color:var(--accent);font-weight:700;min-width:34px;text-align:right;flex-shrink:0;}
+
+/* ── AUDITMIND TAB ────────────────────────────────────────── */
+.am-wrap{display:none;flex-direction:column;height:calc(100vh - 36px - 50px - 36px);overflow:hidden;grid-column:1/-1;}
+.am-wrap.on{display:flex;}
+.am-grid{display:grid;grid-template-columns:200px 1fr 220px;height:100%;}
+.am-col{display:flex;flex-direction:column;overflow:hidden;border-right:1px solid var(--border);}
+.am-col:last-child{border-right:none;}
+.am-stat-card{padding:10px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;transition:background 0.2s;}
+.am-stat-card:hover{background:var(--accent-dim);}
+.am-stat-label{font-family:'Exo 2',sans-serif;font-style:italic;font-size:10px;color:var(--text);}
+.am-stat-val{font-family:'Orbitron',monospace;font-size:14px;font-weight:700;}
+.am-timeline-item{padding:7px 12px;border-bottom:1px solid rgba(10,40,20,0.3);animation:slide-in-right 0.3s ease-out;transition:background 0.2s;}
+.am-timeline-item:hover{background:var(--accent-dim);}
+.am-timeline-item.suspicious{border-left:2px solid #f0a020;background:rgba(240,160,32,0.03);}
+.am-time{font-family:'Share Tech Mono',monospace;font-size:8px;color:rgba(80,130,100,0.5);}
+.am-user{font-family:'Orbitron',monospace;font-size:9px;font-weight:700;color:var(--text-bright);}
+.am-type{font-family:'Exo 2',sans-serif;font-style:italic;font-size:9px;color:rgba(100,150,180,0.6);}
+.am-alert-item{padding:9px 12px;border-bottom:1px solid rgba(10,40,20,0.4);animation:slide-in-right 0.3s ease-out;transition:background 0.2s;}
+.am-alert-item:hover{background:var(--accent-dim);}
+.am-alert-item.critical{border-left:3px solid #e84040;background:rgba(232,64,64,0.04);}
+.am-alert-item.high{border-left:3px solid #f0a020;background:rgba(240,160,32,0.03);}
+.am-alert-item.medium{border-left:3px solid #3a9de8;}
+.am-alert-item.low{border-left:3px solid #00c864;}
+.am-alert-head{display:flex;align-items:center;gap:6px;margin-bottom:3px;}
+.am-alert-rule{font-family:'Orbitron',monospace;font-size:8px;font-weight:700;color:var(--text-bright);text-transform:uppercase;flex:1;}
+.am-alert-sev{font-family:'Orbitron',monospace;font-size:7px;padding:1px 4px;font-weight:700;}
+.am-alert-msg{font-family:'Exo 2',sans-serif;font-style:italic;font-size:10px;color:rgba(120,160,180,0.7);line-height:1.4;}
+.am-alert-detail{font-family:'Share Tech Mono',monospace;font-size:8px;color:rgba(0,200,100,0.5);margin-top:2px;}
+.am-service-item{padding:7px 12px;border-bottom:1px solid rgba(10,40,20,0.3);transition:background 0.2s;}
+.am-service-item:hover{background:var(--accent-dim);}
+.am-service-name{font-family:'Orbitron',monospace;font-size:9px;font-weight:700;color:#f0a020;text-transform:uppercase;}
+.am-service-detail{font-family:'Exo 2',sans-serif;font-style:italic;font-size:9px;color:rgba(120,160,180,0.6);margin-top:2px;word-break:break-all;}
+.am-risk-bar{height:4px;background:rgba(255,255,255,0.08);margin-top:6px;}
+.am-risk-fill{height:100%;background:#f0a020;transition:width 1.5s cubic-bezier(0.4,0,0.2,1);}
+
+
+/* ── HEAVY PROTECTION MODE ─────────────────────────────────── */
+@keyframes hpm-pulse{0%,100%{box-shadow:inset 0 0 0 0 rgba(232,64,64,0);}50%{box-shadow:inset 0 0 40px 8px rgba(232,64,64,0.25);}}
+@keyframes hpm-banner{0%,100%{opacity:1;}50%{opacity:0.6;}}
+#hpm-banner{
+  display:none;position:fixed;top:36px;left:0;right:0;z-index:997;
+  background:linear-gradient(90deg,#1a0000,#2a0000,#1a0000);
+  border-bottom:1px solid #e84040;
+  padding:5px 14px;
+  display:none;align-items:center;justify-content:space-between;
+}
+#hpm-banner.active{display:flex !important;}
+.hpm-text{font-family:'Orbitron',monospace;font-size:9px;font-weight:900;color:#e84040;letter-spacing:3px;text-transform:uppercase;animation:hpm-banner 1.5s infinite;}
+.hpm-info{font-family:'Share Tech Mono',monospace;font-size:8px;color:rgba(232,64,64,0.6);}
+.hpm-exit{font-family:'Orbitron',monospace;font-size:8px;cursor:pointer;padding:3px 8px;background:rgba(232,64,64,0.1);border:1px solid rgba(232,64,64,0.3);color:#e84040;font-weight:700;}
+.hpm-exit:hover{background:rgba(232,64,64,0.2);}
+body.hpm-active{animation:hpm-pulse 2s infinite;}
+body.hpm-active .titlebar{border-bottom:1px solid #e84040;}
+body.hpm-active .tabs{border-bottom:1px solid #e84040;}
+body.hpm-active #tb-status{color:#e84040;animation:agent-breathe-fast 0.8s infinite;}
+/* Shift content down when banner shows */
+body.hpm-active .topbar{margin-top:28px;}
+
+</style>
+</head>
+<body>
+
+<!-- HEAVY PROTECTION MODE BANNER -->
+<div id="hpm-banner">
+  <div style="display:flex;align-items:center;gap:12px;">
+    <span style="color:#e84040;font-size:14px;animation:agent-breathe-fast 0.8s infinite;">⚠</span>
+    <span class="hpm-text">⬡ Heavy Protection Mode Active</span>
+    <span class="hpm-info" id="hpm-reason">Investigating suspicious activity</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;">
+    <span class="hpm-info" id="hpm-timer">Scans: every 15s</span>
+    <button class="hpm-exit" onclick="exitHeavyProtection()">✕ Exit Protection Mode</button>
+  </div>
+</div>
+
+<!-- THREAT FLASH OVERLAY -->
+<div id="threat-flash"></div>
+
+<!-- SCAN PULSE -->
+<div id="scan-pulse">
+  <div class="pulse-ring"></div>
+  <div class="pulse-ring"></div>
+  <div class="pulse-ring"></div>
+</div>
+
+<!-- TITLEBAR -->
+<div class="titlebar">
+  <div class="tb-left">
+    <span class="tb-logo">CLOUDGUARD AI</span>
+    <span class="tb-status" id="tb-status">● PROTECTED</span>
+  </div>
+  <div class="tb-controls">
+    <button class="tb-btn min" onclick="cg('minimize')"></button>
+    <button class="tb-btn max" onclick="cg('maximize')"></button>
+    <button class="tb-btn close" onclick="cg('close')"></button>
+  </div>
+</div>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="brand">
+    <div class="shield" id="main-shield" onclick="triggerScan()">⬡</div>
+    <div><div class="brand-name">CloudGuard AI</div><div class="brand-sub">AI-Native Security Platform</div></div>
+  </div>
+  <div class="topstats">
+    <div class="ts"><div class="ts-l">Threats Blocked</div><div class="ts-v g" id="m0">0</div></div>
+    <div class="ts"><div class="ts-l">Events / Min</div><div class="ts-v b" id="m1">--</div></div>
+    <div class="ts"><div class="ts-l">Active Alerts</div><div class="ts-v a" id="m2">0</div></div>
+    <div class="ts"><div class="ts-l">Files Scanned</div><div class="ts-v g" id="m3">0</div></div>
+    <div class="ts"><div class="ts-l">CPU</div><div class="ts-v g" id="cpu-top">--%</div></div>
+    <div class="ts"><div class="ts-l">RAM</div><div class="ts-v b" id="ram-top">--%</div></div>
+  </div>
+  <div class="clock">
+    <div class="ts-l">System Time</div>
+    <div class="ts-v b" id="clk" style="font-size:12px">--:--:--</div>
+    <div style="font-family:'Exo 2',sans-serif;font-style:italic;font-size:8px;color:var(--accent);margin-top:1px" id="scan-status">● Initializing</div>
+  </div>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+  <div class="tab on" onclick="switchTab('threat',this)">⬡ Threat Monitor</div>
+  <div class="tab" onclick="switchTab('tasks',this)">◈ Task Manager</div>
+  <div class="tab" onclick="switchTab('auditmind',this)">🧠 AuditMind <span class="badge" id="am-badge" style="display:none">0</span></div>
+  <div class="tab" onclick="switchTab('downloads',this)">⬇ Download Protection <span class="badge" id="dl-badge" style="display:none">0</span></div>
+  <div class="tab" onclick="switchTab('settings',this)">⚙ Settings</div>
+</div>
+
+<!-- ── THREAT MONITOR ── -->
+<div class="panel on" id="panel-threat" style="grid-template-columns:172px 1fr 210px 210px;height:calc(100vh - 36px - 50px - 36px);">
+
+  <!-- Left: Agents -->
+  <div class="col-left">
+    <div class="sec-head">Agents <span style="color:var(--accent)" id="agents-count">5 Active</span></div>
+    <div class="ag on" style="--ac:#3a9de8" id="ag-0" onclick="openAgentDetail('ThreatHound')">
+      <div class="ag-dot"></div>
+      <div><div class="ag-n">ThreatHound</div><div class="ag-r">Intrusion Det.</div></div>
+      <div class="ag-s" id="s0">0</div>
+      <span class="ag-arrow">›</span>
+    </div>
+    <div class="ag" style="--ac:#00c864" id="ag-1" onclick="openAgentDetail('VaultGuard')">
+      <div class="ag-dot"></div>
+      <div><div class="ag-n">VaultGuard</div><div class="ag-r">Secrets Scan</div></div>
+      <div class="ag-s" id="s1">0</div>
+      <span class="ag-arrow">›</span>
+    </div>
+    <div class="ag" style="--ac:#b040d0" id="ag-2" onclick="openAgentDetail('NetSentinel')">
+      <div class="ag-dot"></div>
+      <div><div class="ag-n">NetSentinel</div><div class="ag-r">Network Mon.</div></div>
+      <div class="ag-s" id="s2">0</div>
+      <span class="ag-arrow">›</span>
+    </div>
+    <div class="ag" style="--ac:#e84040" id="ag-3" onclick="openAgentDetail('PhageKiller')">
+      <div class="ag-dot"></div>
+      <div><div class="ag-n">PhageKiller</div><div class="ag-r">Malware Kill</div></div>
+      <div class="ag-s" id="s3">0</div>
+      <span class="ag-arrow">›</span>
+    </div>
+    <div class="ag" style="--ac:#f0a020" id="ag-4" onclick="openAgentDetail('AuditMind')">
+      <div class="ag-dot"></div>
+      <div><div class="ag-n">AuditMind</div><div class="ag-r">Log Intel.</div></div>
+      <div class="ag-s" id="s4">0</div>
+      <span class="ag-arrow">›</span>
+    </div>
+    <div class="risk-block">
+      <div class="ts-l" style="margin-bottom:3px">System Risk</div>
+      <div class="risk-num" id="rsnum" style="color:#00c864">0</div>
+      <div class="risk-sub" id="rslbl">/ 100 — Clean</div>
+      <div class="risk-bar"><div class="risk-fill" id="rsbar" style="width:0%;background:#00c864"></div></div>
+    </div>
+  </div>
+
+  <!-- Mid: Feed + Agent Detail -->
+  <div class="col-mid">
+    <!-- Agent Detail Overlay -->
+    <div id="agent-detail">
+      <div class="detail-header">
+        <button class="detail-back" onclick="closeAgentDetail()">← BACK</button>
+        <span class="detail-agent-name" id="detail-name">AGENT</span>
+        <span class="detail-status live-badge" id="detail-status">● Active</span>
+      </div>
+      <div class="detail-body">
+        <!-- Portrait — left side, full height -->
+        <div class="detail-portrait-col">
+          <div class="portrait-container" id="portrait-container">
+            <div class="portrait-bg" id="portrait-bg"></div>
+            <div id="portrait-svg-container" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;"></div>
+          </div>
+          <div style="padding:8px;border-top:1px solid var(--border);background:var(--bg2);">
+            <div class="detail-stat" style="text-align:center;padding:4px 0;border:none;">
+              <div class="detail-stat-num" id="d-findings" style="color:#00c864;font-size:20px;">0</div>
+              <div class="detail-stat-lbl">Findings</div>
+            </div>
+            <div class="detail-stat" style="text-align:center;padding:4px 0;border:none;border-top:1px solid var(--border);">
+              <div class="detail-stat-num" id="d-scanned" style="color:#3a9de8;font-size:20px;">0</div>
+              <div class="detail-stat-lbl">Scanned</div>
+            </div>
+            <div class="detail-stat" style="text-align:center;padding:4px 0;border:none;border-top:1px solid var(--border);">
+              <div class="detail-stat-num" id="d-risk" style="color:#f0a020;font-size:20px;">0</div>
+              <div class="detail-stat-lbl">Peak Risk</div>
+            </div>
+          </div>
+        </div>
+        <!-- Content — right side, scrollable -->
+        <div class="detail-content-col">
+          <div class="detail-desc" id="detail-desc" style="flex-shrink:0;">Agent description loads here.</div>
+          <div class="detail-findings" id="detail-findings" style="flex:1;overflow-y:auto;"></div>
+          <div class="detail-actions" style="flex-shrink:0;">
+            <button class="cg-btn" onclick="closeAgentDetail()">← Return to Feed</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Live Feed View -->
+    <div id="feed-view" style="display:flex;flex-direction:column;height:100%;">
+      <div class="sec-head"><span>Live Threat Feed</span><span id="feed-badge" class="live-badge">● Scanning</span></div>
+      <div class="feed" id="feed"></div>
+      <div class="agent-strip">
+        <div class="ac" style="--ac:#3a9de8" onclick="openAgentDetail('ThreatHound')"><div class="ac-n">ThreatHound</div><div class="ac-s" id="c0">0</div><div class="ac-l">Events</div><div class="ac-bar"><div class="ac-fill" id="cf0" style="width:0%"></div></div><div class="ac-st" id="cs0">● Scanning</div></div>
+        <div class="ac" style="--ac:#00c864" onclick="openAgentDetail('VaultGuard')"><div class="ac-n">VaultGuard</div><div class="ac-s" id="c1">0</div><div class="ac-l">Secrets</div><div class="ac-bar"><div class="ac-fill" id="cf1" style="width:0%"></div></div><div class="ac-st">● Active</div></div>
+        <div class="ac" style="--ac:#b040d0" onclick="openAgentDetail('NetSentinel')"><div class="ac-n">NetSentinel</div><div class="ac-s" id="c2">0</div><div class="ac-l">Anomalies</div><div class="ac-bar"><div class="ac-fill" id="cf2" style="width:0%"></div></div><div class="ac-st">● Active</div></div>
+        <div class="ac" style="--ac:#e84040" onclick="openAgentDetail('PhageKiller')"><div class="ac-n">PhageKiller</div><div class="ac-s" id="c3">0</div><div class="ac-l">Threats</div><div class="ac-bar"><div class="ac-fill" id="cf3" style="width:0%"></div></div><div class="ac-st">● Active</div></div>
+        <div class="ac" style="--ac:#f0a020" onclick="openAgentDetail('AuditMind')"><div class="ac-n">AuditMind</div><div class="ac-s" id="c4">0</div><div class="ac-l">Log Events</div><div class="ac-bar"><div class="ac-fill" id="cf4" style="width:0%"></div></div><div class="ac-st">● Active</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right: ThreatHound Status -->
+  <div class="col-right">
+    <div class="sec-head">ThreatHound Status</div>
+    <div class="threat-status-bar" id="threat-status-bar">
+      <div class="threat-status-text" id="threat-status-msg">Initializing scan...</div>
+      <div class="threat-stats-row">
+        <span class="threat-stat" id="th-failed">Failed logins: --</span>
+        <span class="threat-stat" id="th-priv">Priv esc: --</span>
+      </div>
+    </div>
+    <div id="alerts-container">
+      <div class="alert-item" style="--ac:#3a9de8"><div class="alert-head"><div class="alert-dot"></div><div class="alert-title">Scanning...</div></div><div class="alert-body">ThreatHound reading Windows Security Event Log...</div></div>
+    </div>
+    <div class="action-block">
+      <div class="act-lbl">Quick Actions</div>
+      <button class="cg-btn" id="scan-btn" onclick="triggerScan()">⬡ Run Full Scan</button>
+      <button class="cg-btn" id="auto-block-btn" onclick="triggerAutoBlock()">🛡 Auto-Block Threats</button>
+      <button class="cg-btn">◈ Export Report</button>
+      <button class="cg-btn red">⊗ Lockdown Mode</button>
+      <div class="scan-time" id="last-scan-time">Last scan: never</div>
+    </div>
+  </div>
+
+  <!-- Far Right: VaultGuard -->
+  <div class="col-right">
+    <div class="sec-head">VaultGuard <span id="vg-status-badge" class="live-badge">● Scanning</span></div>
+    <div class="vault-stats-row">
+      <div class="vault-stat"><div class="vault-stat-num r" id="vg-critical">0</div><div class="vault-stat-lbl">Critical</div></div>
+      <div class="vault-stat"><div class="vault-stat-num a" id="vg-high">0</div><div class="vault-stat-lbl">High</div></div>
+      <div class="vault-stat"><div class="vault-stat-num b" id="vg-files">0</div><div class="vault-stat-lbl">Files</div></div>
+    </div>
+    <div style="flex:1;overflow-y:auto;" id="vault-findings">
+      <div class="vault-finding low"><div class="vault-head-row"><span class="vault-filename">Scanning filesystem...</span></div><div class="vault-action">VaultGuard scanning for exposed secrets...</div></div>
+    </div>
+    <div class="action-block">
+      <div class="act-lbl">VaultGuard Actions</div>
+      <button class="cg-btn" onclick="triggerVaultScan()">⬡ Rescan Secrets</button>
+      <div class="scan-time" id="vault-scan-time">Last scan: never</div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ── AUDITMIND TAB ── -->
+<div class="panel" id="panel-auditmind" style="grid-template-columns:1fr">
+  <div class="am-wrap on">
+    <div class="am-grid">
+
+      <!-- LEFT: Stats + Services -->
+      <div class="am-col">
+        <div class="sec-head">AuditMind <span id="am-status-badge" class="live-badge">● Scanning</span></div>
+
+        <!-- Risk meter -->
+        <div style="padding:12px;border-bottom:1px solid var(--border);">
+          <div class="ts-l" style="margin-bottom:3px">Audit Risk</div>
+          <div style="font-family:'Orbitron',monospace;font-size:28px;font-weight:900;color:#f0a020;" id="am-risk">0</div>
+          <div style="font-family:'Exo 2',sans-serif;font-style:italic;font-size:9px;color:rgba(100,160,120,0.5);" id="am-risk-lbl">/ 100 — Scanning</div>
+          <div class="am-risk-bar"><div class="am-risk-fill" id="am-risk-bar" style="width:0%"></div></div>
+        </div>
+
+        <!-- Stats -->
+        <div class="am-stat-card"><span class="am-stat-label">User Sessions</span><span class="am-stat-val g" id="am-sessions">--</span></div>
+        <div class="am-stat-card"><span class="am-stat-label">Account Changes</span><span class="am-stat-val b" id="am-account-changes">--</span></div>
+        <div class="am-stat-card"><span class="am-stat-label">New Services</span><span class="am-stat-val a" id="am-services-count">--</span></div>
+        <div class="am-stat-card"><span class="am-stat-label">Scheduled Tasks</span><span class="am-stat-val b" id="am-tasks">--</span></div>
+        <div class="am-stat-card"><span class="am-stat-label">Suspicious Logons</span><span class="am-stat-val a" id="am-suspicious">--</span></div>
+        <div class="am-stat-card"><span class="am-stat-label">Alerts</span><span class="am-stat-val r" id="am-alert-count">--</span></div>
+
+        <div class="action-block">
+          <div class="act-lbl">Actions</div>
+          <button class="cg-btn" onclick="rescanAuditMind()">⬡ Rescan Logs</button>
+          <button class="cg-btn" id="auto-block-am-btn" onclick="triggerAutoBlock()">🛡 Auto-Block Threats</button>
+          <div class="scan-time" id="am-scan-time">Last scan: never</div>
+        </div>
+      </div>
+
+      <!-- MID: Timeline + Services found -->
+      <div class="am-col">
+        <div class="sec-head">
+          <span id="am-mid-title">New Services Detected</span>
+          <span style="display:flex;gap:4px;">
+            <button id="btn-sessions" onclick="showAMView('timeline')" style="font-family:'Orbitron',monospace;font-size:7px;cursor:pointer;padding:2px 6px;background:var(--accent-dim);border:1px solid var(--accent-border);color:var(--accent);transition:all 0.2s;">SESSIONS</button>
+            <button id="btn-services" onclick="showAMView('services')" style="font-family:'Orbitron',monospace;font-size:7px;cursor:pointer;padding:2px 6px;background:rgba(240,160,32,0.15);border:1px solid rgba(240,160,32,0.4);color:#f0a020;transition:all 0.2s;">SERVICES ⚠</button>
+          </span>
+        </div>
+        <!-- Session timeline view -->
+        <div id="am-timeline-view" style="flex:1;overflow-y:auto;">
+          <div class="am-timeline-item"><span class="am-user">Scanning...</span><div class="am-type">Loading session data</div></div>
+        </div>
+        <!-- Services view (hidden initially) -->
+        <div id="am-services-view" style="flex:1;overflow-y:auto;display:none;">
+          <div class="am-service-item"><span class="am-service-name">Scanning...</span></div>
+        </div>
+      </div>
+
+      <!-- RIGHT: Alerts -->
+      <div class="am-col" style="border-right:none;">
+        <div class="sec-head">Active Alerts <span id="am-alert-badge" class="live-badge" style="color:#f0a020;background:rgba(240,160,32,0.1);border-color:rgba(240,160,32,0.3);">● Scanning</span></div>
+        <div id="am-alerts-container" style="flex:1;overflow-y:auto;">
+          <div class="am-alert-item medium">
+            <div class="am-alert-head"><span class="am-alert-rule">Initializing</span></div>
+            <div class="am-alert-msg">AuditMind scanning Windows Security Event Log...</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ── TASK MANAGER ── -->
+<div class="panel" id="panel-tasks" style="grid-template-columns:1fr">
+  <div class="tm-wrap on">
+    <div class="meters">
+      <div class="meter"><div class="meter-lbl">CPU Usage</div><div class="meter-val" id="cpu-val" style="color:#3a9de8">--%</div><div class="meter-bar"><div class="meter-fill" id="cpu-bar" style="width:0%;background:#3a9de8"></div></div><div class="meter-sub" id="cpu-sub">Reading...</div></div>
+      <div class="meter"><div class="meter-lbl">RAM Usage</div><div class="meter-val" id="ram-val" style="color:#f0a020">--%</div><div class="meter-bar"><div class="meter-fill" id="ram-bar" style="width:0%;background:#f0a020"></div></div><div class="meter-sub" id="ram-sub">Reading...</div></div>
+      <div class="meter"><div class="meter-lbl">Disk I/O</div><div class="meter-val" id="disk-val" style="color:#00c864">--</div><div class="meter-bar"><div class="meter-fill" id="disk-bar" style="width:5%;background:#00c864"></div></div><div class="meter-sub">NetSentinel</div></div>
+      <div class="meter"><div class="meter-lbl">Network</div><div class="meter-val" id="net-val" style="color:#00c864">--KB/s</div><div class="meter-bar"><div class="meter-fill" id="net-bar" style="width:5%;background:#00c864"></div></div><div class="meter-sub">Monitoring</div></div>
+    </div>
+    <div class="proc-table" id="proc-table">
+      <div class="proc-head"><span>Process</span><span>CPU</span><span>RAM</span><span>PID</span><span>PhageKiller Risk</span></div>
+      <div class="proc-row"><span class="proc-name" style="color:rgba(100,150,180,0.4)">Waiting for real data...</span></div>
+    </div>
+    <div class="ai-block" id="ai-tips">
+      <div class="ai-head">◈ CloudGuard AI — Live Performance Analysis</div>
+      <div class="ai-tip">→ Waiting for system data...</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── DOWNLOAD PROTECTION ── -->
+<div class="panel" id="panel-downloads" style="grid-template-columns:220px 1fr 220px;height:calc(100vh - 36px - 50px - 36px);">
+  <div class="col-left">
+    <div class="sec-head">PhageKiller <span style="color:var(--accent)">Active</span></div>
+    <div class="yara-card">
+      <div class="yara-card-title">YARA Engine <span id="yara-status-dot" class="live-badge">● Ready</span></div>
+      <div class="yara-stat-row"><span class="yara-stat-label">Total Rules</span><span class="yara-stat-val" id="yara-rule-count">1,811</span></div>
+      <div class="yara-stat-row"><span class="yara-stat-label">Sources</span><span class="yara-stat-val" id="yara-sources">5 / 7</span></div>
+      <div class="yara-stat-row"><span class="yara-stat-label">Last Update</span><span class="yara-stat-val" id="yara-last-update">Today</span></div>
+      <div class="yara-stat-row"><span class="yara-stat-label">YARA Engine</span><span class="yara-stat-val" id="yara-engine-status" style="color:#f0a020">Hash Mode</span></div>
+    </div>
+    <div style="padding:10px 12px;border-top:1px solid var(--border);margin-top:8px;">
+      <div class="sec-head" style="padding:0;margin-bottom:8px;border:none;">Rule Sources</div>
+      <div class="yara-source-row"><div class="yara-source-dot ok"></div><span class="yara-source-name">signature-base-gen</span><span class="yara-source-count">59</span></div>
+      <div class="yara-source-row"><div class="yara-source-dot ok"></div><span class="yara-source-name">signature-base-apt</span><span class="yara-source-count">11</span></div>
+      <div class="yara-source-row"><div class="yara-source-dot ok"></div><span class="yara-source-name">yara-rules-malware</span><span class="yara-source-count">70</span></div>
+      <div class="yara-source-row"><div class="yara-source-dot ok"></div><span class="yara-source-name">yara-rules-packer</span><span class="yara-source-count">1,664</span></div>
+      <div class="yara-source-row"><div class="yara-source-dot ok"></div><span class="yara-source-name">cloudguard-custom</span><span class="yara-source-count">7</span></div>
+      <div class="yara-source-row"><div class="yara-source-dot fail"></div><span class="yara-source-name">sig-base-exploit</span><span class="yara-source-count" style="color:#e84040">404</span></div>
+      <div class="yara-source-row"><div class="yara-source-dot fail"></div><span class="yara-source-name">sig-base-malware</span><span class="yara-source-count" style="color:#e84040">404</span></div>
+      <div class="progress-bar-wrap" id="update-progress"><div class="progress-bar-fill" id="update-progress-fill"></div></div>
+    </div>
+    <div class="action-block">
+      <div class="act-lbl">PhageKiller Actions</div>
+      <button class="cg-btn" onclick="updateYaraRules()">⬡ Update YARA Rules</button>
+      <button class="cg-btn blue" onclick="scanFileDialog()">◈ Scan a File</button>
+      <button class="cg-btn" onclick="openDownloads()">⬇ Open Downloads</button>
+    </div>
+  </div>
+  <div class="col-mid">
+    <div class="dl-stats-bar">
+      <div class="dl-stat-item"><div class="dl-stat-num g" id="dl-clean">0</div><div class="dl-stat-lbl">Clean</div></div>
+      <div class="dl-stat-sep"></div>
+      <div class="dl-stat-item"><div class="dl-stat-num" style="color:#f0a020" id="dl-suspicious">0</div><div class="dl-stat-lbl">Suspicious</div></div>
+      <div class="dl-stat-sep"></div>
+      <div class="dl-stat-item"><div class="dl-stat-num r" id="dl-blocked">0</div><div class="dl-stat-lbl">Blocked</div></div>
+      <div class="dl-stat-sep"></div>
+      <div class="dl-stat-item"><div class="dl-stat-num b" id="dl-total">0</div><div class="dl-stat-lbl">Total Scanned</div></div>
+      <div style="margin-left:auto;font-family:'Share Tech Mono',monospace;font-size:8px;color:rgba(100,160,120,0.5)" id="dl-watching">● Watching Downloads + Desktop</div>
+    </div>
+    <div class="sec-head"><span>Download Scan Feed</span><span class="live-badge" id="dl-feed-badge">● Watching</span></div>
+    <div class="dl-feed" id="dl-feed">
+      <div class="dl-item scanning"><div class="dl-head-row"><span class="dl-filename">Initializing download protection...</span><span class="dl-verdict dv-scanning">INIT</span></div><div class="dl-meta-row"><span class="dl-meta">PhageKiller watching Downloads + Desktop</span></div></div>
+    </div>
+  </div>
+  <div class="col-right">
+    <div class="sec-head">Blocked Threats</div>
+    <div id="blocked-container">
+      <div class="alert-item" style="--ac:#00c864"><div class="alert-head"><div class="alert-dot"></div><div class="alert-title">Protected</div></div><div class="alert-body">No threats detected. PhageKiller actively monitoring.</div></div>
+    </div>
+    <div class="action-block">
+      <div class="act-lbl">Protection Status</div>
+      <div style="font-family:'Exo 2',sans-serif;font-style:italic;font-size:10px;color:var(--accent);margin-bottom:8px;" id="protection-summary">Watching Downloads + Desktop<br>1,811 YARA rules active<br>Hash database: 5 known threats</div>
+      <button class="cg-btn" onclick="updateYaraRules()">⬡ Refresh Rules</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── SETTINGS ── -->
+<div class="panel" id="panel-settings" style="grid-template-columns:1fr">
+  <div class="settings-wrap on">
+    <div class="settings-grid">
+      <div class="s-card">
+        <div class="s-card-title">⬡ Theme Color</div>
+        <div class="s-row"><span class="s-label">Accent Color</span><div class="swatches"><div class="swatch active" style="background:#00c864" data-accent="#00c864" onclick="setAccent('#00c864',this)"></div><div class="swatch" style="background:#3a9de8" data-accent="#3a9de8" onclick="setAccent('#3a9de8',this)"></div><div class="swatch" style="background:#b040d0" data-accent="#b040d0" onclick="setAccent('#b040d0',this)"></div><div class="swatch" style="background:#f0a020" data-accent="#f0a020" onclick="setAccent('#f0a020',this)"></div><div class="swatch" style="background:#e84040" data-accent="#e84040" onclick="setAccent('#e84040',this)"></div><div class="swatch" style="background:#00c8c8" data-accent="#00c8c8" onclick="setAccent('#00c8c8',this)"></div></div></div>
+        <div class="s-row"><span class="s-label">Background</span><div class="swatches"><div class="swatch active" style="background:#06090e;border-color:#444" onclick="setBg('#06090e','#020508',this)"></div><div class="swatch" style="background:#0a0810;border-color:#444" onclick="setBg('#0a0810','#060412',this)"></div><div class="swatch" style="background:#0a0a0a;border-color:#444" onclick="setBg('#0a0a0a','#050505',this)"></div><div class="swatch" style="background:#0e0806;border-color:#444" onclick="setBg('#0e0806','#080403',this)"></div></div></div>
+      </div>
+      <div class="s-card">
+        <div class="s-card-title">◈ Agent Controls</div>
+        <div class="s-row"><span class="s-label">ThreatHound</span><div class="toggle" onclick="this.classList.toggle('off')"><div class="toggle-thumb"></div></div></div>
+        <div class="s-row"><span class="s-label">VaultGuard</span><div class="toggle" onclick="this.classList.toggle('off')"><div class="toggle-thumb"></div></div></div>
+        <div class="s-row"><span class="s-label">NetSentinel</span><div class="toggle" onclick="this.classList.toggle('off')"><div class="toggle-thumb"></div></div></div>
+        <div class="s-row"><span class="s-label">PhageKiller</span><div class="toggle" onclick="this.classList.toggle('off')"><div class="toggle-thumb"></div></div></div>
+        <div class="s-row"><span class="s-label">AuditMind</span><div class="toggle" onclick="this.classList.toggle('off')"><div class="toggle-thumb"></div></div></div>
+      </div>
+      <div class="s-card">
+        <div class="s-card-title">⚠ Alert Thresholds</div>
+        <div class="s-row"><span class="s-label">Risk Score</span><div class="range-wrap"><input type="range" class="s-range" min="0" max="100" value="75" step="1" oninput="this.nextElementSibling.textContent=this.value"><span class="s-val">75</span></div></div>
+        <div class="s-row"><span class="s-label">CPU Alert %</span><div class="range-wrap"><input type="range" class="s-range" min="0" max="100" value="80" step="1" oninput="this.nextElementSibling.textContent=this.value+'%'"><span class="s-val">80%</span></div></div>
+        <div class="s-row"><span class="s-label">RAM Alert %</span><div class="range-wrap"><input type="range" class="s-range" min="0" max="100" value="85" step="1" oninput="this.nextElementSibling.textContent=this.value+'%'"><span class="s-val">85%</span></div></div>
+        <div class="s-row"><span class="s-label">Failed Logins</span><div class="range-wrap"><input type="range" class="s-range" min="1" max="20" value="5" step="1" oninput="this.nextElementSibling.textContent=this.value"><span class="s-val">5</span></div></div>
+      </div>
+      <div class="s-card">
+        <div class="s-card-title">⚙ Preferences</div>
+        <div class="s-row"><span class="s-label">Auto-Heal on Breach</span><div class="toggle" onclick="this.classList.toggle('off')"><div class="toggle-thumb"></div></div></div>
+        <div class="s-row"><span class="s-label">Desktop Notifications</span><div class="toggle" onclick="this.classList.toggle('off')"><div class="toggle-thumb"></div></div></div>
+        <div class="s-row"><span class="s-label">System Tray Mode</span><div class="toggle" onclick="this.classList.toggle('off')"><div class="toggle-thumb"></div></div></div>
+        <div class="s-row"><span class="s-label">AI Performance Tips</span><div class="toggle" onclick="this.classList.toggle('off')"><div class="toggle-thumb"></div></div></div>
+        <div class="s-row"><span class="s-label">Start with Windows</span><div class="toggle off" onclick="this.classList.toggle('off')"><div class="toggle-thumb"></div></div></div>
+        <div class="s-row"><span class="s-label">Light Mode</span><div class="toggle off" id="light-toggle" onclick="toggleLightMode(this)"><div class="toggle-thumb"></div></div></div>
+        <div class="s-row"><span class="s-label">Dark Mode</span><div class="toggle" id="dark-toggle" onclick="toggleDarkMode(this)"><div class="toggle-thumb"></div></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── AGENT DATA ────────────────────────────────────────────────────────────────
+const AGENTS = {
+  ThreatHound: {
+    color: '#3a9de8', abbrev: 'THD', idx: 0,
+    desc: 'ThreatHound is CloudGuard\'s intrusion detection engine. It reads the Windows Security Event Log in real time, analyzing failed logins, privilege escalations, brute force patterns, geo anomalies, and known malicious IP signatures to detect active attacks before they succeed.',
+    capabilities: ['Windows Security Event Log', 'Brute force detection', 'Geo anomaly flagging', 'Known bad IP matching', 'Privilege escalation alerts'],
+    portrait: null,
+    image: '../assets/agents/threathound.png'
+  },
+  VaultGuard: {
+    color: '#00c864', abbrev: 'VLT', idx: 1,
+    desc: 'VaultGuard is CloudGuard\'s secrets detection engine. It scans files, source code, environment configs, and AWS credential files for exposed API keys, private keys, tokens, database URLs, and hardcoded passwords — before attackers find them.',
+    capabilities: ['AWS key detection', 'Private key scanning', 'GitHub token detection', 'Database credential scanning', 'Hardcoded password finding'],
+    portrait: null,
+    image: '../assets/agents/vaultguard.png'
+  },
+  NetSentinel: {
+    color: '#b040d0', abbrev: 'NET', idx: 2,
+    desc: 'NetSentinel is CloudGuard\'s network monitoring agent. It watches active connections, detects anomalous outbound traffic, flags connections to known C2 domains, monitors DNS queries, and identifies DDoS patterns — in real time.',
+    capabilities: ['Active connection monitoring', 'C2 domain detection', 'DNS query analysis', 'DDoS pattern detection', 'Outbound traffic analysis'],
+    portrait: null,
+    image: '../assets/agents/netsentinel.png'
+  },
+  PhageKiller: {
+    color: '#e84040', abbrev: 'PHG', idx: 3,
+    desc: 'PhageKiller is CloudGuard\'s malware detection and process monitoring engine. It scans downloads using 1,811 YARA rules, monitors running processes for suspicious behavior, checks file hashes against known malware databases, and watches for crypto miners, ransomware, and reverse shells.',
+    capabilities: ['1,811 YARA rules', 'Process risk scoring', 'Download protection', 'Hash-based malware detection', 'Daily rule auto-updates'],
+    portrait: null,
+    image: '../assets/agents/phagekiller.png'
+  },
+  AuditMind: {
+    color: '#f0a020', abbrev: 'AUD', idx: 4,
+    desc: 'AuditMind is CloudGuard\'s log intelligence engine. It parses Windows Security Event Logs, detects audit policy tampering, tracks user session timelines, flags unusual access patterns, and correlates events across agents to surface complex multi-stage attack chains.',
+    capabilities: ['Event log intelligence', 'Audit policy tamper detection', 'Session timeline tracking', 'Multi-stage attack correlation', 'Log pattern analysis'],
+    portrait: null,
+    image: '../assets/agents/auditmind.png'
+  }
+}
+
+// ── HELPERS ───────────────────────────────────────────────────────────────────
+function cg(a){if(window.cloudguard){if(a==='minimize')window.cloudguard.minimize();else if(a==='maximize')window.cloudguard.maximize();else if(a==='close')window.cloudguard.close();}}
+function pad(n){return String(n).padStart(2,'0');}
+function switchTab(t,el){document.querySelectorAll('.tab').forEach(e=>e.classList.remove('on'));document.querySelectorAll('.panel').forEach(e=>e.classList.remove('on'));el.classList.add('on');document.getElementById('panel-'+t).classList.add('on');}
+function setAccent(c,sw){document.querySelectorAll('.swatches .swatch[data-accent]').forEach(s=>s.classList.remove('active'));if(sw)sw.classList.add('active');const[r,g,b]=[parseInt(c.slice(1,3),16),parseInt(c.slice(3,5),16),parseInt(c.slice(5,7),16)];document.documentElement.style.setProperty('--accent',c);document.documentElement.style.setProperty('--accent-dim',`rgba(${r},${g},${b},0.12)`);document.documentElement.style.setProperty('--accent-border',`rgba(${r},${g},${b},0.3)`);}
+function setBg(bg,bg2,sw){document.querySelectorAll('.swatches .swatch:not([data-accent])').forEach(s=>s.classList.remove('active'));if(sw)sw.classList.add('active');document.documentElement.style.setProperty('--bg',bg);document.documentElement.style.setProperty('--bg2',bg2);}
+let isLight=false;
+function toggleLightMode(el){if(!isLight){isLight=true;document.body.classList.add('light');el.classList.remove('off');document.getElementById('dark-toggle').classList.add('off');}}
+function toggleDarkMode(el){if(isLight){isLight=false;document.body.classList.remove('light');el.classList.remove('off');document.getElementById('light-toggle').classList.add('off');document.documentElement.style.setProperty('--bg','#06090e');document.documentElement.style.setProperty('--bg2','#020508');document.documentElement.style.setProperty('--border','#0a3a20');}}
+
+// ── ANIMATIONS ────────────────────────────────────────────────────────────────
+function triggerThreatFlash(){
+  var el=document.getElementById('threat-flash');
+  el.classList.remove('active');
+  void el.offsetWidth;
+  el.classList.add('active');
+  setTimeout(function(){el.classList.remove('active');},1500);
+}
+
+function triggerScanPulse(){
+  var sp=document.getElementById('scan-pulse');
+  sp.classList.add('active');
+  var shield=document.getElementById('main-shield');
+  shield.classList.add('scanning');
+  var btn=document.getElementById('scan-btn');
+  btn.classList.add('scanning-btn');
+  setTimeout(function(){
+    sp.classList.remove('active');
+    shield.classList.remove('scanning');
+    btn.classList.remove('scanning-btn');
+  },3000);
+}
+
+function shakeAgent(agentName){
+  var idx=Object.keys(AGENTS).indexOf(agentName);
+  if(idx<0)return;
+  var el=document.getElementById('ag-'+idx);
+  if(!el)return;
+  el.classList.add('shaking');
+  setTimeout(function(){el.classList.remove('shaking');},400);
+}
+
+// ── BOOT SEQUENCE ─────────────────────────────────────────────────────────────
+function runBootSequence(){
+  var agents=document.querySelectorAll('.ag');
+  agents.forEach(function(ag,i){
+    setTimeout(function(){
+      ag.classList.add('boot');
+    }, i * 300 + 500);
+  });
+}
+
+// ── AGENT DETAIL VIEW ─────────────────────────────────────────────────────────
+var currentAgentData = {};
+
+function openAgentDetail(agentName){
+  var agent=AGENTS[agentName];
+  if(!agent)return;
+
+  document.getElementById('detail-name').textContent=agentName.toUpperCase();
+  document.getElementById('detail-status').textContent='● Active';
+  document.getElementById('detail-status').style.color=agent.color;
+  document.getElementById('detail-desc').textContent=agent.desc;
+
+  // Set portrait
+  var container=document.getElementById('portrait-svg-container');
+  document.getElementById('portrait-bg').style.setProperty('--ac',agent.color);
+  if(agent.image){
+    container.innerHTML='<img class="portrait-img" src="'+agent.image+'" alt="'+agentName+'" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'"/><div style="display:none;width:100%;height:100%;align-items:center;justify-content:center;font-family:Orbitron,monospace;font-size:28px;color:'+agent.color+';">'+agentName.substring(0,2).toUpperCase()+'</div><div class="portrait-overlay"></div><div class="portrait-agent-label" style="--ac:'+agent.color+'">'+agentName.toUpperCase()+'</div>';
+  } else if(agent.portrait){
+    container.innerHTML=agent.portrait;
+    container.style.setProperty('--portrait-color',agent.color);
+    if(container.firstElementChild)container.firstElementChild.style.setProperty('--portrait-color',agent.color);
+  } else {
+    container.innerHTML='<div style="width:140px;height:140px;display:flex;align-items:center;justify-content:center;font-family:Orbitron,monospace;font-size:32px;color:'+agent.color+';">'+agentName.substring(0,2).toUpperCase()+'</div>';
+  }
+
+  // Set stats from stored data
+  var data=currentAgentData[agentName]||{findings:0,scanned:0,risk:0,events:[]};
+  document.getElementById('d-findings').textContent=data.findings||0;
+  document.getElementById('d-findings').style.color=data.findings>0?'#e84040':'#00c864';
+  document.getElementById('d-scanned').textContent=data.scanned||0;
+  document.getElementById('d-risk').textContent=data.risk||0;
+
+  // Capabilities list
+  var findingsEl=document.getElementById('detail-findings');
+  findingsEl.innerHTML='';
+  if(data.events&&data.events.length>0){
+    data.events.slice(0,8).forEach(function(e){
+      var sev=(e.severity||'low').toLowerCase();
+      var sevC={critical:'vr-crit',high:'vr-high',medium:'vr-med',low:'vr-low'}[sev]||'vr-low';
+      var row=document.createElement('div');
+      row.className='detail-finding';
+      row.innerHTML='<div class="detail-find-head"><span class="detail-find-rule">'+(e.rule||'Event').replace(/_/g,' ')+'</span><span class="detail-find-sev '+sevC+'">'+sev.toUpperCase().substring(0,4)+'</span></div><div class="detail-find-desc">'+(e.description||'')+'</div>';
+      findingsEl.appendChild(row);
+    });
+  } else {
+    agent.capabilities.forEach(function(cap){
+      var row=document.createElement('div');
+      row.className='detail-finding';
+      row.innerHTML='<div class="detail-find-head"><span class="detail-find-rule">✓ '+cap+'</span></div>';
+      findingsEl.appendChild(row);
+    });
+  }
+
+  // Show detail, hide feed
+  document.getElementById('feed-view').style.display='none';
+  var detail=document.getElementById('agent-detail');
+  detail.style.setProperty('--ac',agent.color);
+  detail.classList.add('visible');
+}
+
+function closeAgentDetail(){
+  document.getElementById('agent-detail').classList.remove('visible');
+  document.getElementById('feed-view').style.display='flex';
+}
+
+// ── FEED ──────────────────────────────────────────────────────────────────────
+var feed=document.getElementById('feed');
+var totalBlocked=0,lastScanTime=null;
+
+function addFeedItem(agent,msg,sev,real){
+  var now=new Date(),t=pad(now.getHours())+':'+pad(now.getMinutes())+':'+pad(now.getSeconds());
+  var color=AGENTS[agent]?AGENTS[agent].color:'#00c864';
+  var abbrev=AGENTS[agent]?AGENTS[agent].abbrev:agent.substring(0,3).toUpperCase();
+  var sc={low:'sl',medium:'sm',high:'sh',critical:'sc',LOW:'sl',MEDIUM:'sm',HIGH:'sh',CRITICAL:'sc'}[sev]||'sl';
+  var sl=(sev||'low').toUpperCase().substring(0,4);
+  var rc=real?(sc==='sh'||sc==='sc'?' real-threat':' real'):'';
+  var d=document.createElement('div');
+  d.className='fi'+rc;
+  d.innerHTML='<span class="fi-t">'+t+'</span><span class="fi-ag" style="color:'+color+'">'+abbrev+'</span><span class="fi-sep">›</span><span class="fi-m">'+msg+'</span><span class="fi-sev '+sc+'">'+sl+'</span>';
+  feed.insertBefore(d,feed.firstChild);
+  while(feed.children.length>12)feed.removeChild(feed.lastChild);
+}
+
+// ── THREAT SCAN ───────────────────────────────────────────────────────────────
+function applyThreatScan(data){
+  if(!data)return;
+  lastScanTime=new Date();
+  var stats=data.raw_stats||{},summary=data.summary||{},status=data.system_status||{},events=data.events||[];
+
+  // Store for agent detail
+  currentAgentData['ThreatHound']={
+    findings:events.length,
+    scanned:stats.total_failed_logins||0,
+    risk:Math.round(summary.peak_risk||0),
+    events:events
+  };
+
+  var tbStatus=document.getElementById('tb-status');
+  tbStatus.textContent=status.clean===false?'⚠ THREAT DETECTED':'● PROTECTED';
+  tbStatus.className='tb-status'+(status.clean===false?' threat':'');
+
+  if(status.clean===false){
+    triggerThreatFlash();
+    shakeAgent('ThreatHound');
+  }
+
+  document.getElementById('scan-status').textContent=data.windows_event_log_available?'● Live Scan Active':'● Admin Required';
+  document.getElementById('s0').textContent=stats.total_failed_logins||0;
+  document.getElementById('c0').textContent=stats.total_failed_logins||0;
+  document.getElementById('cf0').style.width=Math.min((stats.total_failed_logins||0)*2,100)+'%';
+  document.getElementById('cs0').textContent=data.windows_event_log_available?'● Live':'● No Admin';
+
+  var msgEl=document.getElementById('threat-status-msg');
+  msgEl.textContent=status.message||'Scan complete';
+  msgEl.className='threat-status-text'+(status.clean===false?' danger':'');
+  var bar=document.getElementById('threat-status-bar');
+  bar.className='threat-status-bar'+(status.clean===false?' danger':'');
+
+  document.getElementById('th-failed').textContent='Failed logins: '+(stats.total_failed_logins||0);
+  document.getElementById('th-priv').textContent='Priv esc: '+(stats.user_privilege_escalations||0);
+  document.getElementById('last-scan-time').textContent='Last scan: '+pad(lastScanTime.getHours())+':'+pad(lastScanTime.getMinutes())+':'+pad(lastScanTime.getSeconds());
+
+  var container=document.getElementById('alerts-container');
+  if(events.length>0){
+    container.innerHTML='';
+    totalBlocked+=events.length;
+    document.getElementById('m0').textContent=totalBlocked;
+    document.getElementById('m2').textContent=events.length;
+    events.slice(0,4).forEach(function(e){
+      var sev=(e.severity||'low').toLowerCase();
+      var c={critical:'#e84040',high:'#e84040',medium:'#f0a020',low:'#3a9de8'}[sev]||'#3a9de8';
+      var bg={critical:'rgba(232,64,64,0.15)',high:'rgba(232,64,64,0.12)',medium:'rgba(240,160,32,0.12)',low:'rgba(58,157,232,0.12)'}[sev]||'rgba(58,157,232,0.12)';
+      container.innerHTML+='<div class="alert-item" style="--ac:'+c+'"><div class="alert-head"><div class="alert-dot"></div><div class="alert-title">'+(e.rule||'THREAT').replace(/_/g,' ')+'</div><span class="sev-badge" style="background:'+bg+';color:'+c+';margin-left:auto">'+sev.toUpperCase().substring(0,4)+'</span></div><div class="alert-body">'+(e.description||'')+'</div><div class="alert-time">'+pad(lastScanTime.getHours())+':'+pad(lastScanTime.getMinutes())+' — '+(e.agent||'ThreatHound')+'</div></div>';
+      addFeedItem(e.agent||'ThreatHound',e.description,e.severity,true);
+    });
+  } else {
+    container.innerHTML='<div class="alert-item" style="--ac:#00c864"><div class="alert-head"><div class="alert-dot"></div><div class="alert-title">System Clean</div><span class="sev-badge" style="background:rgba(0,200,100,0.12);color:#00c864;margin-left:auto">SAFE</span></div><div class="alert-body">'+(status.message||'No threats detected')+'</div><div class="alert-time">'+pad(lastScanTime.getHours())+':'+pad(lastScanTime.getMinutes())+' — ThreatHound</div></div><div class="alert-item" style="--ac:#3a9de8"><div class="alert-head"><div class="alert-dot"></div><div class="alert-title">Event Log Stats</div></div><div class="alert-body">Failed logins: '+(stats.total_failed_logins||0)+' · Sys events: '+(stats.system_privilege_events||0)+' (normal)</div><div class="alert-time">Last 24hrs · Windows Security Log</div></div>';
+    addFeedItem('ThreatHound',status.message||'No threats detected','low',true);
+  }
+
+  var risk=Math.round(summary.peak_risk||0);
+  document.getElementById('rsnum').textContent=risk;
+  document.getElementById('rsbar').style.width=risk+'%';
+  var rc=risk>70?'#e84040':risk>40?'#f0a020':'#00c864';
+  document.getElementById('rsbar').style.background=rc;
+  document.getElementById('rsnum').style.color=rc;
+  document.getElementById('rslbl').textContent=risk>70?'/ 100 — Critical':risk>40?'/ 100 — Moderate':'/ 100 — Clean';
+  document.getElementById('feed-badge').textContent=data.windows_event_log_available?'● Live':'● No Admin';
+}
+
+// ── VAULTGUARD ────────────────────────────────────────────────────────────────
+function applyVaultScan(data){
+  if(!data)return;
+  var now=new Date(),t=pad(now.getHours())+':'+pad(now.getMinutes())+':'+pad(now.getSeconds());
+  document.getElementById('vg-critical').textContent=data.critical_count||0;
+  document.getElementById('vg-high').textContent=data.high_count||0;
+  document.getElementById('vg-files').textContent=data.files_scanned||0;
+  document.getElementById('vault-scan-time').textContent='Last scan: '+t;
+
+  var findings=data.findings||[];
+  var totalThreats=(data.critical_count||0)+(data.high_count||0)+(data.medium_count||0);
+
+  // Store for agent detail
+  var allEvents=[];
+  findings.forEach(function(f){(f.events||[]).forEach(function(e){allEvents.push(e);});});
+  currentAgentData['VaultGuard']={findings:totalThreats,scanned:data.files_scanned||0,risk:Math.round(data.peak_risk||0),events:allEvents};
+
+  var badge=document.getElementById('vg-status-badge');
+  if(totalThreats>0){
+    badge.textContent='⚠ '+totalThreats+' Found';
+    badge.style.background='rgba(232,64,64,0.15)';badge.style.color='#e84040';badge.style.borderColor='rgba(232,64,64,0.3)';
+    document.getElementById('s1').textContent=totalThreats;
+    document.getElementById('c1').textContent=totalThreats;
+    document.getElementById('cf1').style.width=Math.min(totalThreats*10,100)+'%';
+    totalBlocked+=totalThreats;
+    document.getElementById('m0').textContent=totalBlocked;
+    shakeAgent('VaultGuard');
+    if(totalThreats>=3)triggerThreatFlash();
+  } else {
+    badge.textContent='● Clean';badge.style.background='var(--accent-dim)';badge.style.color='var(--accent)';badge.style.borderColor='var(--accent-border)';
+  }
+
+  var container=document.getElementById('vault-findings');
+  container.innerHTML='';
+  if(!findings||findings.length===0){
+    container.innerHTML='<div class="vault-finding low"><div class="vault-head-row"><span class="vault-filename">No secrets found</span><span class="vault-rule vr-low">CLEAN</span></div><div class="vault-action">Scanned '+(data.files_scanned||0)+' files — no exposed credentials detected.</div></div>';
+    addFeedItem('VaultGuard','Secrets scan complete — '+(data.files_scanned||0)+' files clean','low',true);
+    return;
+  }
+  findings.slice(0,8).forEach(function(f){
+    var sev=(f.severity||'low').toLowerCase();
+    var sevClass=sev,ruleClass={critical:'vr-crit',high:'vr-high',medium:'vr-med',low:'vr-low'}[sev]||'vr-low';
+    var item=document.createElement('div');
+    item.className='vault-finding '+sevClass;
+    var evHtml='';
+    (f.events||[]).forEach(function(ev){
+      var rn=(ev.rule||'').replace(/_/g,' ');
+      var ac=(ev.action||'').replace(/_/g,' ');
+      var red=(ev.metadata&&ev.metadata.redacted)?ev.metadata.redacted:'***';
+      evHtml+='<div class="vault-event-row"><span class="vault-rule-name">'+rn+'</span><span class="vault-redacted">'+red+'</span></div>';
+      evHtml+='<div class="vault-action">Action: '+ac+' · Risk: '+ev.risk_score+'/100</div>';
+    });
+    item.innerHTML='<div class="vault-head-row"><span class="vault-filename" title="'+(f.filepath||'')+'">'+(f.file||'unknown')+'</span><span class="vault-rule '+ruleClass+'">'+sev.toUpperCase().substring(0,4)+'</span></div>'+evHtml;
+    container.appendChild(item);
+  });
+  findings.filter(function(f){return f.severity==='critical'||f.severity==='high';}).slice(0,3).forEach(function(f){
+    var ev=f.events&&f.events[0];
+    addFeedItem('VaultGuard',(f.severity||'high').toUpperCase()+': '+(ev?(ev.rule||'').replace(/_/g,' '):'SECRET')+' in '+(f.file||'file'),f.severity||'high',true);
+  });
+}
+
+function triggerVaultScan(){
+  document.getElementById('vg-status-badge').textContent='● Scanning...';
+  triggerScanPulse();
+  if(window.cloudguard)window.cloudguard.runVaultScan().then(function(d){if(d)applyVaultScan(d);}).catch(function(){});
+}
+
+// ── DOWNLOAD SCAN ─────────────────────────────────────────────────────────────
+var dlClean=0,dlSuspicious=0,dlBlocked=0,dlTotal=0,dlAlerts=0;
+function applyDownloadScan(data){
+  if(!data||data.type==='scanner_startup'||data.type==='watcher_started')return;
+  dlTotal++;
+  document.getElementById('m3').textContent=dlTotal;
+  var v=data.verdict||'clean';
+  if(v==='malicious'){dlBlocked++;dlAlerts++;triggerThreatFlash();shakeAgent('PhageKiller');}
+  else if(v==='suspicious'){dlSuspicious++;dlAlerts++;}
+  else{dlClean++;}
+  document.getElementById('dl-clean').textContent=dlClean;
+  document.getElementById('dl-suspicious').textContent=dlSuspicious;
+  document.getElementById('dl-blocked').textContent=dlBlocked;
+  document.getElementById('dl-total').textContent=dlTotal;
+  if(dlAlerts>0){var b=document.getElementById('dl-badge');b.style.display='inline-flex';b.textContent=dlAlerts;}
+  var dlFeed=document.getElementById('dl-feed');
+  var item=document.createElement('div');
+  var vClass={malicious:'blocked',suspicious:'suspicious',clean:'clean',error:'scanning'}[v]||'clean';
+  var vBadge={malicious:'dv-blocked',suspicious:'dv-suspicious',clean:'dv-clean',error:'dv-scanning'}[v]||'dv-clean';
+  var vLabel={malicious:'BLOCKED',suspicious:'WARN',clean:'CLEAN',error:'ERROR'}[v]||'CLEAN';
+  var sz=data.file_size?((data.file_size/1024).toFixed(1)+'KB'):'';
+  var reasons=(data.reasons||[]).slice(0,2).join(' · ')||'No threats detected';
+  var now=new Date(),t=pad(now.getHours())+':'+pad(now.getMinutes())+':'+pad(now.getSeconds());
+  item.className='dl-item '+vClass;
+  item.innerHTML='<div class="dl-head-row"><span class="dl-filename" title="'+(data.filepath||'')+'">'+(data.file||'unknown')+'</span><span class="dl-verdict '+vBadge+'">'+vLabel+'</span></div><div class="dl-meta-row"><span class="dl-meta">'+t+' · '+sz+' · Risk: '+(data.risk_score||0)+'/100</span></div><div class="dl-reason">'+reasons+'</div>';
+  dlFeed.insertBefore(item,dlFeed.firstChild);
+  while(dlFeed.children.length>20)dlFeed.removeChild(dlFeed.lastChild);
+  if(v==='malicious'||v==='suspicious'){
+    var container=document.getElementById('blocked-container');
+    if(container.children.length===1&&container.children[0].querySelector('.alert-title')&&container.children[0].querySelector('.alert-title').textContent==='Protected')container.innerHTML='';
+    var color=v==='malicious'?'#e84040':'#f0a020';
+    var newAlert=document.createElement('div');newAlert.className='alert-item';newAlert.style.setProperty('--ac',color);
+    newAlert.innerHTML='<div class="alert-head"><div class="alert-dot"></div><div class="alert-title">'+v.toUpperCase()+': '+(data.file||'file')+'</div><span class="sev-badge" style="background:rgba(232,64,64,0.15);color:'+color+';margin-left:auto">'+(v==='malicious'?'CRIT':'HIGH')+'</span></div><div class="alert-body">'+(data.reasons||[]).slice(0,2).join(' · ')+'</div><div class="alert-time">'+t+' — PhageKiller</div>';
+    container.insertBefore(newAlert,container.firstChild);
+    addFeedItem('PhageKiller',v.toUpperCase()+': '+(data.file||'file')+' (risk: '+(data.risk_score||0)+'/100)',v==='malicious'?'critical':'high',true);
+    totalBlocked++;document.getElementById('m0').textContent=totalBlocked;
+    document.getElementById('s3').textContent=dlBlocked;document.getElementById('c3').textContent=dlBlocked;
+    document.getElementById('cf3').style.width=Math.min(dlBlocked*10,100)+'%';
+  }
+}
+
+// ── YARA ──────────────────────────────────────────────────────────────────────
+function updateYaraRules(){
+  document.getElementById('yara-status-dot').textContent='● Updating';
+  document.getElementById('yara-status-dot').style.color='#f0a020';
+  document.getElementById('update-progress').style.display='block';
+  triggerScanPulse();
+  var prog=0,intv=setInterval(function(){prog=Math.min(prog+8,90);document.getElementById('update-progress-fill').style.width=prog+'%';},400);
+  if(window.cloudguard){
+    window.cloudguard.updateYaraRules().then(function(result){
+      clearInterval(intv);
+      document.getElementById('update-progress-fill').style.width='100%';
+      setTimeout(function(){document.getElementById('update-progress').style.display='none';},800);
+      document.getElementById('yara-status-dot').textContent='● Ready';
+      document.getElementById('yara-status-dot').style.color='var(--accent)';
+      if(result&&result.total_rules)document.getElementById('yara-rule-count').textContent=result.total_rules.toLocaleString();
+      document.getElementById('yara-last-update').textContent='Just now';
+    }).catch(function(){clearInterval(intv);document.getElementById('yara-status-dot').textContent='● Error';});
+  }
+}
+function scanFileDialog(){if(window.cloudguard)window.cloudguard.scanFileDialog().then(function(results){if(results)results.forEach(function(r){applyDownloadScan(r);});});}
+function openDownloads(){if(window.cloudguard)window.cloudguard.openDownloads();}
+function applyYaraUpdate(data){if(!data)return;if(data.total_rules)document.getElementById('yara-rule-count').textContent=data.total_rules.toLocaleString();if(data.updated&&data.failed)document.getElementById('yara-sources').textContent=data.updated.length+' / '+(data.updated.length+data.failed.length);document.getElementById('yara-last-update').textContent='Just now';addFeedItem('PhageKiller','YARA rules updated — '+(data.total_rules||0)+' rules active','low',true);}
+
+// ── SYSTEM STATS ──────────────────────────────────────────────────────────────
+function applyRealStats(stats){
+  if(!stats)return;
+  var cpuc=stats.cpu>80?'#e84040':stats.cpu>60?'#f0a020':'#3a9de8';
+  var ramc=stats.ram>85?'#e84040':stats.ram>70?'#f0a020':'#3a9de8';
+  document.getElementById('cpu-top').textContent=stats.cpu+'%';
+  document.getElementById('ram-top').textContent=stats.ram+'%';
+  document.getElementById('m1').textContent=(280+Math.floor(Math.random()*80)).toString();
+  document.getElementById('cpu-val').textContent=stats.cpu+'%';document.getElementById('cpu-val').style.color=cpuc;
+  document.getElementById('cpu-bar').style.width=stats.cpu+'%';document.getElementById('cpu-bar').style.background=cpuc;
+  document.getElementById('cpu-sub').textContent=stats.cpuCores+' cores — '+(stats.cpu>80?'High':stats.cpu>60?'Moderate':'Normal');
+  document.getElementById('ram-val').textContent=stats.ram+'%';document.getElementById('ram-val').style.color=ramc;
+  document.getElementById('ram-bar').style.width=stats.ram+'%';document.getElementById('ram-bar').style.background=ramc;
+  document.getElementById('ram-sub').textContent=stats.ramUsed+' GB / '+stats.ramTotal+' GB';
+  document.getElementById('net-val').textContent=(stats.netRx||0)+'KB/s';
+  var sus=(stats.processes||[]).filter(function(p){return p.risk==='SUSPICIOUS'||p.risk==='CRITICAL';});
+  document.getElementById('s3').textContent=Math.max(sus.length,dlBlocked);
+  currentAgentData['PhageKiller']={findings:sus.length,scanned:(stats.processes||[]).length,risk:sus.length>0?70:0,events:sus.map(function(p){return{rule:p.name,description:p.name+' — '+p.risk+' (CPU: '+p.cpu+'%)',severity:p.risk==='CRITICAL'?'critical':'high',risk_score:p.risk==='CRITICAL'?90:70};})};
+  if(stats.processes&&stats.processes.length>0){
+    var table=document.getElementById('proc-table');
+    table.innerHTML='<div class="proc-head"><span>Process</span><span>CPU</span><span>RAM</span><span>PID</span><span>PhageKiller Risk</span></div>';
+    stats.processes.forEach(function(p){
+      var risk=p.risk||'CLEAN',rc=risk==='CRITICAL'?'pr-c':risk==='SUSPICIOUS'?'pr-h':risk==='HIGH'?'pr-h':risk==='TRUSTED'?'pr-t':'pr-l';
+      var cc=p.cpu>50?'#e84040':p.cpu>20?'#f0a020':'#3a9de8';
+      var row=document.createElement('div');row.className='proc-row';
+      row.innerHTML='<span class="proc-name">'+p.name+'</span><span class="proc-val" style="color:'+cc+'">'+p.cpu+'%</span><span class="proc-val" style="color:#5a9ab0">'+p.memMb+'MB</span><span class="proc-val" style="color:#5a8a9a">'+p.pid+'</span><span><span class="proc-risk '+rc+'">'+risk+'</span></span>';
+      table.appendChild(row);
+    });
+  }
+  var tips=[];
+  if(stats.cpu>70)tips.push('→ <strong style="color:#e84040">CPU at '+stats.cpu+'%</strong> — elevated. AuditMind monitoring for runaway processes.');
+  else tips.push('→ <strong style="color:#00c864">CPU at '+stats.cpu+'%</strong> — normal across '+stats.cpuCores+' cores.');
+  if(stats.ram>80)tips.push('→ <strong style="color:#f0a020">RAM at '+stats.ram+'%</strong> ('+stats.ramUsed+'GB/'+stats.ramTotal+'GB) — consider closing apps.');
+  else tips.push('→ <strong style="color:#00c864">RAM at '+stats.ram+'%</strong> ('+stats.ramUsed+'GB/'+stats.ramTotal+'GB) — normal range.');
+  if(sus.length>0)tips.push('→ <strong style="color:#e84040">'+sus[0].name+' flagged SUSPICIOUS</strong> — PhageKiller recommends investigation.');
+  else tips.push('→ <strong style="color:#00c864">All processes clean</strong> — PhageKiller found no malware patterns.');
+  tips.push('→ <strong style="color:#3a9de8">Network normal</strong> — NetSentinel shows no anomalous outbound connections.');
+  var aiBlock=document.getElementById('ai-tips');
+  aiBlock.innerHTML='<div class="ai-head">◈ CloudGuard AI — Live Performance Analysis</div>';
+  tips.forEach(function(t){var d=document.createElement('div');d.className='ai-tip';d.innerHTML=t;aiBlock.appendChild(d);});
+}
+
+function triggerScan(){
+  triggerScanPulse();
+  document.getElementById('threat-status-msg').textContent='Running full scan...';
+  if(window.cloudguard)window.cloudguard.runScan().then(function(r){if(r&&r.threatScan)applyThreatScan(r.threatScan);}).catch(function(){});
+}
+
+
+// ── NetSentinel ───────────────────────────────────────────────────────────────
+function applyNetSentinelScan(data) {
+  if (!data) return
+  var summary = data.summary || {}
+  var status = data.system_status || {}
+  var alerts = data.alerts || []
+  var conns = data.connections || {}
+
+  // Update agent score
+  var threatCount = summary.suspicious || 0
+  document.getElementById('s2').textContent = threatCount
+  document.getElementById('c2').textContent = threatCount
+  document.getElementById('cf2').style.width = Math.min(threatCount * 10, 100) + '%'
+
+  // Store for agent detail
+  currentAgentData['NetSentinel'] = {
+    findings: threatCount,
+    scanned: summary.total || 0,
+    risk: Math.round(summary.peak_risk || 0),
+    events: alerts.map(function(a) {
+      return { rule: a.rule || 'ALERT', description: a.message, severity: a.severity || 'medium', risk_score: summary.peak_risk || 30 }
+    })
+  }
+
+  if (!status.clean && alerts.length > 0) {
+    shakeAgent('NetSentinel')
+    alerts.slice(0, 2).forEach(function(a) {
+      addFeedItem('NetSentinel', a.message, a.severity || 'medium', true)
+    })
+    if (summary.c2_detected > 0) triggerThreatFlash()
+  } else if (status.clean) {
+    var ext = conns.external ? conns.external.length : 0
+    var unique = conns.unique_remote_ips || 0
+    addFeedItem('NetSentinel', status.message || ('Network clean — ' + unique + ' unique IPs'), 'low', true)
+  }
+}
+
+
+
+// ── HEAVY PROTECTION MODE ─────────────────────────────────────────────────────
+var hpmActive = false
+var hpmScanInterval = null
+var hpmInvestigating = null
+
+function enterHeavyProtection(reason, serviceName) {
+  if (hpmActive) return
+  hpmActive = true
+  hpmInvestigating = serviceName || null
+
+  // Visual changes
+  document.body.classList.add('hpm-active')
+  var banner = document.getElementById('hpm-banner')
+  banner.classList.add('active')
+  document.getElementById('hpm-reason').textContent = reason || 'Investigating suspicious activity'
+  document.getElementById('hpm-timer').textContent = 'Scans: every 15s'
+
+  // Update titlebar
+  var tbStatus = document.getElementById('tb-status')
+  tbStatus.textContent = '⚠ HEAVY PROTECTION MODE'
+  tbStatus.className = 'tb-status threat'
+
+  // Add feed item
+  addFeedItem('ThreatHound', 'HEAVY PROTECTION MODE ACTIVATED — ' + (reason || 'manual trigger'), 'high', true)
+
+  // Trigger immediate scans
+  triggerScan()
+  if (window.cloudguard) {
+    window.cloudguard.runNetSentinel().then(function(d) { if(d) applyNetSentinelScan(d) }).catch(function(){})
+    window.cloudguard.runVaultScan().then(function(d) { if(d) applyVaultScan(d) }).catch(function(){})
+  }
+
+  // Start rapid scan interval (every 15 seconds)
+  hpmScanInterval = setInterval(function() {
+    if (!hpmActive) { clearInterval(hpmScanInterval); return }
+    triggerScan()
+    if (window.cloudguard) {
+      window.cloudguard.runNetSentinel().then(function(d) { if(d) applyNetSentinelScan(d) }).catch(function(){})
+    }
+    addFeedItem('ThreatHound', 'HPM rapid scan triggered — monitoring all agents', 'medium', true)
+  }, 15000)
+
+  // Also auto-block if there are known threats
+  if (window.cloudguard) {
+    window.cloudguard.autoBlock().then(function(r) {
+      if (r && r.blocked && r.blocked.length > 0) {
+        addFeedItem('ThreatHound', 'Auto-blocked ' + r.blocked.length + ' IP(s) during Heavy Protection Mode', 'high', true)
+      }
+    }).catch(function(){})
+  }
+}
+
+function exitHeavyProtection() {
+  hpmActive = false
+  hpmInvestigating = null
+  if (hpmScanInterval) { clearInterval(hpmScanInterval); hpmScanInterval = null }
+
+  document.body.classList.remove('hpm-active')
+  document.getElementById('hpm-banner').classList.remove('active')
+
+  var tbStatus = document.getElementById('tb-status')
+  tbStatus.textContent = '● PROTECTED'
+  tbStatus.className = 'tb-status'
+
+  addFeedItem('ThreatHound', 'Heavy Protection Mode deactivated — returning to normal scan interval', 'low', true)
+}
+
+// ── Whitelist a service ───────────────────────────────────────────────────────
+var whitelistedServices = []
+
+function whitelistService(serviceName, el) {
+  whitelistedServices.push(serviceName)
+
+  // Update the card UI
+  if (el) {
+    el.style.borderLeftColor = '#00c864'
+    var nameSpan = el.querySelector('.am-service-name')
+    if (nameSpan) { nameSpan.style.color = '#00c864' }
+    var statusSpan = el.querySelector('span[style*="font-weight:700"]')
+    if (statusSpan) {
+      statusSpan.textContent = 'WHITELISTED'
+      statusSpan.style.background = 'rgba(0,200,100,0.1)'
+      statusSpan.style.color = '#00c864'
+    }
+    // Disable the whitelist button
+    var btns = el.querySelectorAll('button')
+    btns.forEach(function(btn) {
+      if (btn.textContent === 'WHITELIST') {
+        btn.textContent = '✓ SAFE'
+        btn.disabled = true
+        btn.style.opacity = '0.5'
+      }
+    })
+  }
+
+  addFeedItem('AuditMind', 'Whitelisted: ' + serviceName + ' — marked as known safe', 'low', true)
+
+  // Check if ALL services are whitelisted — if so, clear the alert
+  if (amLastData) {
+    var services = amLastData.new_services || []
+    var allSafe = services.every(function(s) {
+      return whitelistedServices.indexOf(s.ServiceName || '') !== -1
+    })
+    if (allSafe) {
+      document.getElementById('am-alert-count').textContent = '0'
+      var badge = document.getElementById('am-badge')
+      if (badge) badge.style.display = 'none'
+      document.getElementById('am-status-badge').textContent = '● All Clear'
+      document.getElementById('am-status-badge').style.color = 'var(--accent)'
+      addFeedItem('AuditMind', 'All services whitelisted — audit alerts cleared', 'low', true)
+      // Exit heavy protection if it was triggered by this service
+      if (hpmActive && hpmInvestigating) exitHeavyProtection()
+    }
+  }
+}
+
+// ── Investigate a service (triggers Heavy Protection Mode) ────────────────────
+function investigateService(serviceName, el) {
+  // Mark the card as under investigation
+  if (el) {
+    el.style.borderLeftColor = '#e84040'
+    el.style.background = 'rgba(232,64,64,0.06)'
+    var statusSpan = el.querySelector('span[style*="font-weight:700"]')
+    if (statusSpan) {
+      statusSpan.textContent = 'INVESTIGATING'
+      statusSpan.style.background = 'rgba(232,64,64,0.15)'
+      statusSpan.style.color = '#e84040'
+    }
+    // Update button
+    var btns = el.querySelectorAll('button')
+    btns.forEach(function(btn) {
+      if (btn.textContent === 'INVESTIGATE') {
+        btn.textContent = '● ACTIVE'
+        btn.style.background = 'rgba(232,64,64,0.15)'
+        btn.style.color = '#e84040'
+      }
+    })
+  }
+
+  // Trigger threat flash
+  triggerThreatFlash()
+  shakeAgent('AuditMind')
+
+  // Enter heavy protection mode
+  enterHeavyProtection(
+    'Investigating: ' + serviceName,
+    serviceName
+  )
+}
+
+
+// ── AuditMind tab helpers ─────────────────────────────────────────────────────
+var amCurrentView = 'timeline'
+var amLastData = null
+
+function showAMView(view) {
+  amCurrentView = view
+  document.getElementById('am-timeline-view').style.display = view === 'timeline' ? 'block' : 'none'
+  document.getElementById('am-services-view').style.display = view === 'services' ? 'block' : 'none'
+  document.getElementById('am-mid-title').textContent = view === 'timeline' ? 'Session Timeline' : 'New Services Detected'
+  // Highlight active button
+  var btnSessions = document.getElementById('btn-sessions')
+  var btnServices = document.getElementById('btn-services')
+  if (btnSessions && btnServices) {
+    if (view === 'timeline') {
+      btnSessions.style.background = 'var(--accent)'; btnSessions.style.color = 'var(--bg)'
+      btnServices.style.background = 'rgba(240,160,32,0.1)'; btnServices.style.color = '#f0a020'
+    } else {
+      btnServices.style.background = '#f0a020'; btnServices.style.color = '#000'
+      btnSessions.style.background = 'var(--accent-dim)'; btnSessions.style.color = 'var(--accent)'
+    }
+  }
+  if (view === 'services' && amLastData) renderAMServices(amLastData)
+}
+
+function renderAMServices(data) {
+  var container = document.getElementById('am-services-view')
+  var services = data.new_services || []
+
+  if (services.length === 0) {
+    container.innerHTML = '<div class="am-service-item"><div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;"><span class="am-service-name" style="color:#00c864">No New Services</span></div><div class="am-service-detail">No new services installed in the last 7 days. System is clean.</div></div>'
+    return
+  }
+
+  container.innerHTML = ''
+
+  var header = document.createElement('div')
+  header.style.cssText = 'padding:8px 12px;background:rgba(240,160,32,0.08);border-bottom:1px solid rgba(240,160,32,0.2);'
+  header.innerHTML = '<span style="font-family:Orbitron,monospace;font-size:8px;font-weight:700;color:#f0a020;text-transform:uppercase;letter-spacing:2px;">WARNING: ' + services.length + ' New Service' + (services.length > 1 ? 's' : '') + ' Detected</span><div style="font-family:Exo 2,sans-serif;font-style:italic;font-size:9px;color:rgba(240,160,32,0.6);margin-top:2px;">New services can indicate software installation or persistence mechanisms. Review each one.</div>'
+  container.appendChild(header)
+
+  var KNOWN_SAFE = ['claude', 'google', 'microsoft', 'windows', 'nvidia', 'intel', 'amd', 'steam', 'discord', 'spotify', 'apple', 'adobe', 'zoom', 'dropbox', 'onedrive']
+
+  services.forEach(function(s, idx) {
+    var item = document.createElement('div')
+    item.className = 'am-service-item'
+    item.setAttribute('data-idx', idx)
+
+    var name = s.ServiceName || 'Unknown Service'
+    var filePath = s.ServiceFile || 'Path unknown'
+    var time = (s.Time || '').replace('T', ' ').substring(0, 19)
+    var nameLower = name.toLowerCase()
+    var isSafe = KNOWN_SAFE.some(function(k) { return nameLower.indexOf(k) !== -1 })
+    var statusColor = isSafe ? '#00c864' : '#f0a020'
+    var statusLabel = isSafe ? 'KNOWN SAFE' : 'INVESTIGATE'
+    var statusBg = isSafe ? 'rgba(0,200,100,0.1)' : 'rgba(240,160,32,0.12)'
+    var displayPath = filePath.length > 80 ? '...' + filePath.slice(-77) : filePath
+
+    item.style.cssText = 'border-left:3px solid ' + statusColor + ';'
+
+    var head = document.createElement('div')
+    head.style.cssText = 'display:flex;align-items:center;gap:6px;margin-bottom:4px;'
+
+    var nameSpan = document.createElement('span')
+    nameSpan.className = 'am-service-name'
+    nameSpan.style.cssText = 'color:' + statusColor + ';flex:1;'
+    nameSpan.textContent = name
+
+    var statusSpan = document.createElement('span')
+    statusSpan.style.cssText = 'font-family:Orbitron,monospace;font-size:7px;padding:2px 6px;background:' + statusBg + ';color:' + statusColor + ';font-weight:700;flex-shrink:0;'
+    statusSpan.textContent = statusLabel
+
+    head.appendChild(nameSpan)
+    head.appendChild(statusSpan)
+
+    var pathDiv = document.createElement('div')
+    pathDiv.className = 'am-service-detail'
+    pathDiv.title = filePath
+    pathDiv.textContent = displayPath
+
+    var footer = document.createElement('div')
+    footer.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-top:4px;'
+
+    var timeDiv = document.createElement('div')
+    timeDiv.className = 'am-time'
+    timeDiv.textContent = 'Installed: ' + time
+
+    var btnGroup = document.createElement('div')
+    btnGroup.style.cssText = 'display:flex;gap:4px;'
+
+    var investigateBtn = document.createElement('button')
+    investigateBtn.style.cssText = 'font-family:Orbitron,monospace;font-size:7px;padding:2px 5px;cursor:pointer;background:rgba(232,64,64,0.08);border:1px solid rgba(232,64,64,0.2);color:#e84040;transition:all 0.2s;'
+    investigateBtn.textContent = 'INVESTIGATE'
+    ;(function(n, el) {
+      investigateBtn.addEventListener('click', function() { investigateService(n, el) })
+    })(name, item)
+
+    var whiteBtn = document.createElement('button')
+    whiteBtn.style.cssText = 'font-family:Orbitron,monospace;font-size:7px;padding:2px 5px;cursor:pointer;background:rgba(0,200,100,0.08);border:1px solid rgba(0,200,100,0.2);color:#00c864;transition:all 0.2s;'
+    whiteBtn.textContent = 'WHITELIST'
+    ;(function(n, el) {
+      whiteBtn.addEventListener('click', function() { whitelistService(n, el) })
+    })(name, item)
+
+    btnGroup.appendChild(investigateBtn)
+    btnGroup.appendChild(whiteBtn)
+    footer.appendChild(timeDiv)
+    footer.appendChild(btnGroup)
+
+    item.appendChild(head)
+    item.appendChild(pathDiv)
+    item.appendChild(footer)
+    container.appendChild(item)
+  })
+}
+
+// blockServiceIP replaced by investigateService
+
+function whitelistService(serviceName, el) {
+  addFeedItem('AuditMind', 'Whitelisted: ' + serviceName + ' — marked as known safe', 'low', true)
+  if (el) {
+    el.style.borderLeftColor = '#00c864'
+    var nameSpan = el.querySelector('.am-service-name')
+    if (nameSpan) nameSpan.style.color = '#00c864'
+  }
+}
+
+function rescanAuditMind() {
+  document.getElementById('am-status-badge').textContent = '● Scanning...'
+  if (window.cloudguard) {
+    window.cloudguard.runAuditMind(24).then(function(d) {
+      if (d) applyAuditMindScan(d)
+    }).catch(function() {})
+  }
+}
+
+// ── AuditMind ─────────────────────────────────────────────────────────────────
+function applyAuditMindScan(data) {
+  if (!data) return
+  amLastData = data
+  var summary = data.summary || {}
+  var alerts = data.alerts || []
+  var status = data.system_status || {}
+  var now = new Date()
+  var t = pad(now.getHours())+':'+pad(now.getMinutes())+':'+pad(now.getSeconds())
+
+  var threatCount = alerts.length
+  var peakRisk = Math.round(summary.peak_risk || 0)
+
+  // ── Update threat monitor agent bar ──
+  document.getElementById('s4').textContent = threatCount
+  document.getElementById('c4').textContent = threatCount
+  document.getElementById('cf4').style.width = Math.min(threatCount * 15, 100) + '%'
+
+  // Store for agent detail view
+  currentAgentData['AuditMind'] = {
+    findings: threatCount,
+    scanned: summary.total_user_sessions || 0,
+    risk: peakRisk,
+    events: alerts.map(function(a) {
+      return { rule: a.rule || 'AUDIT', description: a.message, severity: a.severity || 'medium', risk_score: summary.peak_risk || 30 }
+    })
+  }
+
+  // ── Update AuditMind tab ──
+  // Risk meter
+  document.getElementById('am-risk').textContent = peakRisk
+  document.getElementById('am-risk-bar').style.width = peakRisk + '%'
+  var rc = peakRisk > 70 ? '#e84040' : peakRisk > 40 ? '#f0a020' : '#00c864'
+  document.getElementById('am-risk').style.color = rc
+  document.getElementById('am-risk-bar').style.background = rc
+  document.getElementById('am-risk-lbl').textContent = '/ 100 — ' + (peakRisk > 70 ? 'Critical' : peakRisk > 40 ? 'Elevated' : 'Low')
+
+  // Stats
+  document.getElementById('am-sessions').textContent = summary.total_user_sessions || 0
+  document.getElementById('am-account-changes').textContent = summary.account_changes || 0
+  document.getElementById('am-services-count').textContent = summary.new_services || 0
+  document.getElementById('am-tasks').textContent = summary.new_scheduled_tasks || 0
+  document.getElementById('am-suspicious').textContent = summary.suspicious_logons || 0
+  document.getElementById('am-alert-count').textContent = threatCount
+  document.getElementById('am-scan-time').textContent = 'Last scan: ' + t
+
+  // Color services count red if there are new services
+  if ((summary.new_services || 0) > 0) {
+    document.getElementById('am-services-count').style.color = '#f0a020'
+  }
+
+  // Badge on tab
+  if (threatCount > 0) {
+    var badge = document.getElementById('am-badge')
+    badge.style.display = 'inline-flex'
+    badge.textContent = threatCount
+  }
+
+  // Status badge
+  var statusBadge = document.getElementById('am-status-badge')
+  statusBadge.textContent = threatCount > 0 ? '⚠ ' + threatCount + ' Alert(s)' : '● Clean'
+  statusBadge.style.color = threatCount > 0 ? '#f0a020' : 'var(--accent)'
+  statusBadge.style.background = threatCount > 0 ? 'rgba(240,160,32,0.1)' : 'var(--accent-dim)'
+  statusBadge.style.borderColor = threatCount > 0 ? 'rgba(240,160,32,0.3)' : 'var(--accent-border)'
+
+  // Session timeline
+  var timelineContainer = document.getElementById('am-timeline-view')
+  var sessions = data.session_timeline || []
+  if (sessions.length === 0) {
+    timelineContainer.innerHTML = '<div class="am-timeline-item"><span class="am-user" style="color:rgba(100,150,180,0.5)">No User Sessions</span><div class="am-type">No interactive logons in the last 24hrs</div></div>'
+  } else {
+    timelineContainer.innerHTML = ''
+    sessions.forEach(function(s) {
+      var item = document.createElement('div')
+      item.className = 'am-timeline-item' + (s.suspicious ? ' suspicious' : '')
+      var time = (s.time || '').replace('T', ' ').substring(0, 19)
+      item.innerHTML = '<div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;">' +
+        '<span class="am-user">' + (s.username || 'unknown') + '</span>' +
+        (s.suspicious ? '<span style="font-family:Orbitron,monospace;font-size:7px;background:rgba(240,160,32,0.12);color:#f0a020;padding:1px 4px;">SUSPICIOUS</span>' : '') +
+        '</div>' +
+        '<div class="am-type">' + (s.logon_type || 'Interactive') + ' · ' + (s.source_ip || 'local') + '</div>' +
+        '<div class="am-time">' + time + '</div>'
+      timelineContainer.appendChild(item)
+    })
+  }
+
+  // Auto-switch to services view if new services found, otherwise show timeline
+  if ((summary.new_services || 0) > 0) {
+    showAMView('services')
+    renderAMServices(data)
+  } else {
+    showAMView('timeline')
+  }
+
+  // Alerts panel
+  var alertsContainer = document.getElementById('am-alerts-container')
+  var alertBadge = document.getElementById('am-alert-badge')
+
+  if (alerts.length === 0) {
+    alertsContainer.innerHTML = '<div class="am-alert-item low"><div class="am-alert-head"><span class="am-alert-rule">All Clear</span><span class="am-alert-sev" style="background:rgba(0,200,100,0.12);color:#00c864">SAFE</span></div><div class="am-alert-msg">' + (status.message || 'No audit events detected') + '</div></div>'
+    alertBadge.textContent = '● Clean'
+    alertBadge.style.color = 'var(--accent)'
+    alertBadge.style.background = 'var(--accent-dim)'
+  } else {
+    alertsContainer.innerHTML = ''
+    alertBadge.textContent = '⚠ ' + alerts.length + ' Alert(s)'
+    alertBadge.style.color = '#f0a020'
+    alertBadge.style.background = 'rgba(240,160,32,0.1)'
+    alertBadge.style.borderColor = 'rgba(240,160,32,0.3)'
+
+    alerts.forEach(function(a) {
+      var sev = a.severity || 'medium'
+      var sevC = {critical:'#e84040',high:'#f0a020',medium:'#3a9de8',low:'#00c864'}[sev] || '#3a9de8'
+      var sevBg = {critical:'rgba(232,64,64,0.15)',high:'rgba(240,160,32,0.12)',medium:'rgba(58,157,232,0.12)',low:'rgba(0,200,100,0.1)'}[sev] || 'rgba(58,157,232,0.12)'
+      var item = document.createElement('div')
+      item.className = 'am-alert-item ' + sev
+      var details = (a.details || []).slice(0, 3).join(', ')
+      item.innerHTML = '<div class="am-alert-head"><span class="am-alert-rule">' + (a.rule || 'ALERT').replace(/_/g,' ') + '</span><span class="am-alert-sev" style="background:' + sevBg + ';color:' + sevC + '">' + sev.toUpperCase().substring(0,4) + '</span></div><div class="am-alert-msg">' + (a.message || '') + '</div>' + (details ? '<div class="am-alert-detail">→ ' + details + '</div>' : '')
+      alertsContainer.appendChild(item)
+    })
+  }
+
+  // Feed item on Threat Monitor
+  if (alerts.length > 0) {
+    shakeAgent('AuditMind')
+    alerts.slice(0, 2).forEach(function(a) {
+      addFeedItem('AuditMind', a.message, a.severity || 'medium', true)
+    })
+    if (peakRisk >= 75) triggerThreatFlash()
+  } else {
+    addFeedItem('AuditMind', status.message || 'Audit scan clean', 'low', true)
+  }
+}
+
+// ── Active Firewall ───────────────────────────────────────────────────────────
+function triggerAutoBlock() {
+  var btn = document.getElementById('auto-block-btn')
+  if (btn) { btn.textContent = '⬡ Blocking Threats...'; btn.disabled = true }
+  if (window.cloudguard) {
+    window.cloudguard.autoBlock().then(function(result) {
+      if (btn) { btn.textContent = '⬡ Auto-Block Threats'; btn.disabled = false }
+      if (result) {
+        var msg = 'Firewall: ' + (result.blocked || []).length + ' blocked, ' + (result.skipped || []).length + ' skipped'
+        addFeedItem('ThreatHound', msg, (result.blocked || []).length > 0 ? 'high' : 'low', true)
+      }
+    }).catch(function() {
+      if (btn) { btn.textContent = '⬡ Auto-Block Threats'; btn.disabled = false }
+    })
+  }
+}
+
+function blockIPManual(ip) {
+  if (!ip || !window.cloudguard) return
+  window.cloudguard.blockIP(ip).then(function(r) {
+    addFeedItem('ThreatHound', (r && r.success ? '✓ Blocked' : '✗ Failed to block') + ' ' + ip, r && r.success ? 'medium' : 'high', true)
+  }).catch(function() {})
+}
+
+// ── ELECTRON IPC ──────────────────────────────────────────────────────────────
+if(window.cloudguard){
+  window.cloudguard.onSystemStats(function(s){applyRealStats(s);});
+  window.cloudguard.onThreatScan(function(d){applyThreatScan(d);});
+  window.cloudguard.onDownloadScan(function(d){applyDownloadScan(d);});
+  window.cloudguard.onYaraUpdate(function(d){applyYaraUpdate(d);});
+  window.cloudguard.onVaultScan(function(d){applyVaultScan(d);});
+  window.cloudguard.onNetSentinelScan(function(d){applyNetSentinelScan(d);});
+  window.cloudguard.onAuditMindScan(function(d){applyAuditMindScan(d);});
+  window.cloudguard.getSystemStats().then(function(s){if(s)applyRealStats(s);}).catch(function(){});
+  window.cloudguard.getThreatScan().then(function(d){if(d)applyThreatScan(d);}).catch(function(){});
+} else {
+  document.getElementById('scan-status').textContent='● Demo Mode';
+}
+
+// ── CLOCK + BOOT ──────────────────────────────────────────────────────────────
+function tick(){var n=new Date();document.getElementById('clk').textContent=pad(n.getHours())+':'+pad(n.getMinutes())+':'+pad(n.getSeconds());}
+tick();setInterval(tick,1000);
+runBootSequence();
+</script>
+</body>
+</html>

@@ -1,0 +1,27 @@
+# Environment
+.env
+.env.*
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+dist/
+*.egg-info/
+
+# Virtual environment
+.venv/
+venv/
+
+# PyArmor
+pyarmor_runtime_000000/
+
+# AWS
+*.tfstate
+*.tfstate.backup
+.terraform/
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,17 +1,55 @@
+import os
+import json
+import boto3
+from datetime import datetime, timezone
+from dotenv import load_dotenv
 from backend.app.logger import get_logger
+
+load_dotenv()
 
 logger = get_logger("eventbridge_service")
 
+REGION    = os.environ.get("AWS_REGION", "us-east-1")
+EVENT_BUS = os.environ.get("EVENTBRIDGE_BUS_NAME", "cloudguard-events")
 
-def publish_event(event_payload: dict) -> dict:
-    logger.info("Stub EventBridge publish requested")
+events = boto3.client("events", region_name=REGION)
 
-    result = {
-        "provider": "stubbed_eventbridge",
-        "status": "published",
-        "event_payload": event_payload,
+
+def publish_threat_event(source: str, detail_type: str, detail: dict) -> dict:
+    """Publish a threat event to EventBridge."""
+
+    entry = {
+        "Source":       f"cloudguard.{source}",
+        "DetailType":   detail_type,
+        "Detail":       json.dumps(detail),
+        "EventBusName": EVENT_BUS,
+        "Time":         datetime.now(timezone.utc),
     }
 
-    logger.info("Stub EventBridge publish completed")
+    try:
+        response = events.put_events(Entries=[entry])
 
-    return result
+        failed = response.get("FailedEntryCount", 0)
+        if failed > 0:
+            logger.error(f"EventBridge failed to publish {failed} entries")
+            return {
+                "provider": "eventbridge",
+                "status":   "partial_failure",
+                "failed":   failed,
+            }
+
+        event_id = response["Entries"][0].get("EventId")
+        logger.info(f"EventBridge event published: {event_id}")
+        return {
+            "event_id": event_id,
+            "provider": "eventbridge",
+            "status":   "published",
+        }
+
+    except Exception as e:
+        logger.error(f"EventBridge publish failed: {e}")
+        return {
+            "error":    str(e),
+            "provider": "eventbridge",
+            "status":   "failed",
+        }

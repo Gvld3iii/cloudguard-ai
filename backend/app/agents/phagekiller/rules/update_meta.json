@@ -1,0 +1,49 @@
+{
+  "last_update": "2026-07-11T02:46:03.971690+00:00",
+  "rules": {
+    "signature-base-gen": {
+      "name": "signature-base-gen",
+      "filename": "gen_webshells.yar",
+      "rules": 59,
+      "priority": "high"
+    },
+    "signature-base-apt": {
+      "name": "signature-base-apt",
+      "filename": "apt_apt41.yar",
+      "rules": 11,
+      "priority": "critical"
+    },
+    "signature-base-suspicious": {
+      "name": "signature-base-suspicious",
+      "filename": "gen_suspicious_strings.yar",
+      "rules": 25,
+      "priority": "critical"
+    },
+    "signature-base-malware": {
+      "name": "signature-base-malware",
+      "filename": "crime_malware_generic.yar",
+      "rules": 4,
+      "priority": "critical"
+    },
+    "yara-rules-malware": {
+      "name": "yara-rules-malware",
+      "filename": "community_apt1.yar",
+      "rules": 70,
+      "priority": "high"
+    },
+    "yara-rules-packer": {
+      "name": "yara-rules-packer",
+      "filename": "community_packers.yar",
+      "rules": 1664,
+      "priority": "medium"
+    },
+    "cloudguard-custom": {
+      "name": "cloudguard-custom",
+      "filename": "cloudguard_custom.yar",
+      "rules": 7,
+      "priority": "high"
+    }
+  },
+  "total_rules": 1840,
+  "failed": []
+}
